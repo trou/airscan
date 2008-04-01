@@ -1,6 +1,8 @@
 // Includes
 #include <PA9.h>       // Include for PA_Lib
 
+#define DEBUG 1
+
 #define MAX_Y_TEXT 24	// Number of vertical tiles
 #define MAX_X_TEXT 33	// Number of horiz tiles
 // Current console text
@@ -55,7 +57,8 @@ int print_to_console(char *str)
 void abort_msg(char *msg)
 {
 	print_to_console(msg);
-	print_to_console("Exiting...");
+	print_to_console("Looping...");
+	while(1) PA_WaitForVBL();
 }
 
 struct AP_HT_Entry {
@@ -63,7 +66,7 @@ struct AP_HT_Entry {
 	Wifi_AccessPoint *ap;
 };
 
-struct AP_HT_Entry *ap_ht[256];
+struct AP_HT_Entry *ap_ht[256] = {NULL};
 
 struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 {
@@ -102,6 +105,10 @@ int insert_ap(Wifi_AccessPoint *ap)
 	Wifi_AccessPoint *ap_copy;
 	struct AP_HT_Entry *ht_entry;
 	char notpresent;
+#ifdef DEBUG
+	static int numap = 0;
+	static char num[MAX_X_TEXT];
+#endif
 
 	ap_copy = (Wifi_AccessPoint *) malloc(sizeof(Wifi_AccessPoint));
 
@@ -121,16 +128,24 @@ int insert_ap(Wifi_AccessPoint *ap)
 
 		if (notpresent)
 			ht_entry->next = entry_from_ap(ap_copy);
+		else {
+			free(ap_copy);
+			return 1;
+		}
 	}
+#ifdef DEBUG
+	numap++;
+	sprintf(num, "%d AP found !", numap);
+	print_to_console(num);
+#endif
 
 	return 0;
 }
 
-
 int wardriving_loop()
 {
-	int i;
-	char num[10];
+	int num_aps, i;
+	Wifi_AccessPoint cur_ap;
 
 	// Set scan mode
 	print_to_console("Setting scan mode...");
@@ -139,10 +154,12 @@ int wardriving_loop()
 	// Infinite loop to keep the program running
 	while (1)
 	{
-		i = Wifi_GetNumAP();
-		if (i) {
-			sprintf(num, "%d", i);
-			print_to_console(num);
+		num_aps = Wifi_GetNumAP();
+		for (i = 0; i < num_aps; i++) {
+			if(Wifi_GetAPData(i, &cur_ap) != WIFI_RETURN_OK)
+				continue;
+			if(!insert_ap(&cur_ap))
+				print_to_console(cur_ap.ssid);
 		}
 		PA_WaitForVBL();
 	}
