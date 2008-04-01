@@ -65,10 +65,43 @@ struct AP_HT_Entry {
 
 struct AP_HT_Entry *ap_ht[256];
 
+struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
+{
+	struct AP_HT_Entry *res;
+
+	res = (struct AP_HT_Entry *) malloc(sizeof(struct AP_HT_Entry));
+
+	if (!res)
+		abort_msg("Alloc failed !");
+
+	res->ap = ap;
+	res->next = NULL;
+
+	return res;	
+}
+
+struct AP_HT_Entry *find_ap(u8 *macaddr)
+{
+	struct AP_HT_Entry *ht_entry;
+	int key = macaddr[5];
+	char notpresent;
+
+	if (ap_ht[key]) {
+		ht_entry = ap_ht[key];
+		while ((notpresent = memcmp(macaddr, ht_entry->ap->macaddr, 6)) != 0 && ht_entry->next)
+			ht_entry = ht_entry->next;
+		if(!notpresent)
+			return ht_entry;
+	} 
+	return NULL;
+}
+
 int insert_ap(Wifi_AccessPoint *ap)
 {
 	int key	= ap->macaddr[5];
 	Wifi_AccessPoint *ap_copy;
+	struct AP_HT_Entry *ht_entry;
+	char notpresent;
 
 	ap_copy = (Wifi_AccessPoint *) malloc(sizeof(Wifi_AccessPoint));
 
@@ -79,29 +112,25 @@ int insert_ap(Wifi_AccessPoint *ap)
 
 	// check if there's already an entry in the hash table
 	if (ap_ht[key] == NULL) {
-		
+		ap_ht[key] = entry_from_ap(ap_copy);
 	} else {
+		ht_entry = ap_ht[key];
+		// Check if the AP is already present, walking the linked list
+		while ((notpresent = memcmp(ap->macaddr, ht_entry->ap->macaddr, 6)) != 0 && ht_entry->next)
+			ht_entry = ht_entry->next;
+
+		if (notpresent)
+			ht_entry->next = entry_from_ap(ap_copy);
 	}
 
 	return 0;
 }
 
 
-int main(int argc, char ** argv)
+int wardriving_loop()
 {
 	int i;
 	char num[10];
-
-	PA_Init();    // Initializes PA_Lib
-	PA_InitVBL(); // Initializes a standard VBL
-
-	init_console(0,0);
-
-	print_to_console("AirScan v0.1 by Raphael Rigo");
-//	print_to_console("wifi_lib_test v0.3a by Stephen Stair");
-	print_to_console("Initializing Wifi...");
-	PA_InitWifi();
-
 
 	// Set scan mode
 	print_to_console("Setting scan mode...");
@@ -117,6 +146,21 @@ int main(int argc, char ** argv)
 		}
 		PA_WaitForVBL();
 	}
+}
+
+int main(int argc, char ** argv)
+{
+	PA_Init();    // Initializes PA_Lib
+	PA_InitVBL(); // Initializes a standard VBL
+
+	init_console(1,0);
+
+	print_to_console("AirScan v0.1 by Raphael Rigo");
+//	print_to_console("wifi_lib_test v0.3a by Stephen Stair");
+	print_to_console("Initializing Wifi...");
+	PA_InitWifi();
+
+	wardriving_loop();
 	
 	return 0;
 } // End of main()
