@@ -1,7 +1,9 @@
 // Includes
 #include <PA9.h>       // Include for PA_Lib
 
-#define DEBUG 1
+#define DEBUG 0
+
+#define SCREEN_SEP "--------------------------------"
 
 #define DISP_OPN 1
 #define DISP_WEP 2
@@ -14,7 +16,7 @@ char console[MAX_Y_TEXT][MAX_X_TEXT];
 int console_last = 0; /* index to the last added entry */
 int console_screen = 0, console_bg = 0;
 char debug = 0;
-int timeout = 30;
+int timeout = 10;
 
 void init_console(int screen, int bgnum)
 {
@@ -157,19 +159,18 @@ int insert_ap(Wifi_AccessPoint *ap, u32 tick)
 	return 0;
 }
 
-int display_list(int index, int flags) {
+int display_list(int index, int flags, int tick) {
 	int i;
 	int displayed, seen;
 	struct AP_HT_Entry *cur;
-	char info1[MAX_X_TEXT];
-	char info2[MAX_X_TEXT];
+	char info[MAX_X_TEXT];
 	char mode[4];
-	char stats[MAX_X_TEXT];
 	char modes[12];
+	int opn, wep, wpa;
 
 	PA_InitText(0,0);
 
-	displayed = 1; seen = 0;
+	displayed = 1; seen = wpa = wep = opn = 0;
 
 	modes[0]=0;
 	if(flags&DISP_OPN) strcat(modes,"OPN+"); 
@@ -177,44 +178,49 @@ int display_list(int index, int flags) {
 	if(flags&DISP_WPA) strcat(modes,"WPA+"); 
 	modes[strlen(modes)-1]=0;
 
-	snprintf(stats, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
-	PA_OutputSimpleText(0,0,0, stats);
-	PA_OutputSimpleText(0,0,1,"--------------------------------");
+	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
+	PA_OutputSimpleText(0,0,0, info);
+	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 	for(i=0; i<256; i++) {
 		cur = ap_ht[i];
 		while(cur) {
 			if(seen++ >= index) {
 				if (cur->ap->flags & WFLAG_APDATA_WPA) {
+					wpa++;
 					if (!(flags & DISP_WPA))
 						goto next;
 					strcpy(mode, "WPA");
 				}
 				else {
 					if (cur->ap->flags & WFLAG_APDATA_WEP) {
+						wep++;
 						if (!(flags & DISP_WEP))
 							goto next;
 						strcpy(mode, "WEP");
 					} else {
+						opn++;
 						if (!(flags & DISP_OPN))
 							goto next;
 						strcpy(mode, "OPN");
 					}
 				}
-				snprintf(info1, MAX_X_TEXT, "%s", cur->ap->ssid);
-				snprintf(info2, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %4s c%02d %3d",
+				snprintf(info, MAX_X_TEXT, "%s", cur->ap->ssid);
+				PA_OutputSimpleText(0, 0, displayed*3, info);
+				snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %4s c%02d %3d%% %lus",
 					cur->ap->macaddr[0], cur->ap->macaddr[1], cur->ap->macaddr[2],
 					cur->ap->macaddr[3], cur->ap->macaddr[4], cur->ap->macaddr[5],
-					mode, cur->ap->channel, (cur->ap->rssi*100)/0xD0);
-				PA_OutputSimpleText(0, 0, displayed*3, info1);
-				PA_OutputSimpleText(0, 0, displayed*3+1, info2);
-				PA_OutputSimpleText(0, 0, displayed*3+2,"--------------------------------");
+					mode, cur->ap->channel, (cur->ap->rssi*100)/0xD0, 
+					(tick-cur->tick)/1000);
+				PA_OutputSimpleText(0, 0, displayed*3+1, info);
+				PA_OutputSimpleText(0, 0, displayed*3+2, SCREEN_SEP);
 				displayed++;
 			}
 			next:
 			cur = cur->next;
 		}
 	}
-	PA_OutputSimpleText(0,0,MAX_Y_TEXT-1,"--------------------------------");
+	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d index:%d", opn, wep, wpa, index);
+	PA_OutputSimpleText(0,0,1, info);
 	return 0;
 }
 
@@ -311,12 +317,12 @@ int wardriving_loop()
 		}
 
 		// Check timeouts every second
-		if (Tick(timerId)-lasttick > 1000) {
+		if (timeout && (Tick(timerId)-lasttick > 1000)) {
 			lasttick = Tick(timerId);
 			clean_timeouts(lasttick);
 		}
 
-		display_list(index, flags);
+		display_list(index, flags, Tick(timerId));
 		PA_WaitForVBL();
 	}
 }
@@ -331,6 +337,15 @@ int main(int argc, char ** argv)
 
 	print_to_console("AirScan v0.1 by Raphael Rigo");
 	print_to_console("inspired by wifi_lib_test v0.3a by Stephen Stair");
+	print_to_console("");
+	print_to_console("B: Toggle OPN");
+	print_to_console("A: Toggle WEP");
+	print_to_console("X: Toggle WPA");
+	print_to_console("Y: Toggle debug");
+	print_to_console("Up/Down : scroll");
+	print_to_console("Left/Right : Timeout -/+");
+	print_to_console("");
+
 	print_to_console("Initializing Wifi...");
 	PA_InitWifi();
 
