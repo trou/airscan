@@ -17,6 +17,8 @@ void init_console(int screen, int bgnum)
 	console_screen = screen;
 	console_bg = bgnum;
 	PA_InitText(screen, bgnum);
+	PA_SetTextCol(screen, 31, 31, 31);
+
 	for (i = 0; i < MAX_Y_TEXT; i++)
 		console[i][MAX_X_TEXT-1] = 0;
 		
@@ -141,6 +143,37 @@ int insert_ap(Wifi_AccessPoint *ap)
 
 	return 0;
 }
+int display_list(int index, int flags) {
+	int i;
+	int displayed, seen;
+	struct AP_HT_Entry *cur;
+	char info1[MAX_X_TEXT];
+	char info2[MAX_X_TEXT];
+
+	PA_InitText(0,0);
+
+
+	displayed = 0; seen = 0;
+	PA_OutputSimpleText(0,0,0,"--------------------------------");
+	for(i=0; i<256; i++) {
+		cur = ap_ht[i];
+		while(cur) {
+			if(seen++ >= index) {
+				snprintf(info1, MAX_X_TEXT, "%s", cur->ap->ssid);
+				snprintf(info2, MAX_X_TEXT, "M:%02X%02X%02X%02X%02X%02X %04s",
+					cur->ap->macaddr[0], cur->ap->macaddr[1], cur->ap->macaddr[2],
+					cur->ap->macaddr[3], cur->ap->macaddr[4], cur->ap->macaddr[5],
+					"WPA2");
+				PA_OutputSimpleText(0, 0, displayed*3+1, info1);
+				PA_OutputSimpleText(0, 0, displayed*3+2, info2);
+				displayed++;
+			}
+			cur = cur->next;
+		}
+	}
+	PA_OutputSimpleText(0,0,MAX_Y_TEXT-1,"--------------------------------");
+	return 0;
+}
 
 int wardriving_loop()
 {
@@ -150,7 +183,20 @@ int wardriving_loop()
 	// Set scan mode
 	print_to_console("Setting scan mode...");
 	Wifi_ScanMode();
-	
+
+#ifdef DEBUG
+	char mac1[6]={0,1,2,3,4,5};
+	char mac2[6]={5,4,3,2,1,0};
+
+	memset(&cur_ap, 0, sizeof(cur_ap));
+	strcpy(cur_ap.ssid, "OzoneParis.net : Accès Libre");
+	cur_ap.ssid_len=strlen(cur_ap.ssid);
+	memcpy(cur_ap.bssid, mac1, 6);
+	memcpy(cur_ap.macaddr, mac2, 6);
+
+	insert_ap(&cur_ap);
+#endif
+
 	// Infinite loop to keep the program running
 	while (1)
 	{
@@ -161,9 +207,13 @@ int wardriving_loop()
 			if(!insert_ap(&cur_ap))
 				print_to_console(cur_ap.ssid);
 		}
+		if (Pad.Held.B)
+			print_to_console("B");
+		display_list(0, 0);
 		PA_WaitForVBL();
 	}
 }
+
 
 int main(int argc, char ** argv)
 {
@@ -173,7 +223,7 @@ int main(int argc, char ** argv)
 	init_console(1,0);
 
 	print_to_console("AirScan v0.1 by Raphael Rigo");
-//	print_to_console("wifi_lib_test v0.3a by Stephen Stair");
+	print_to_console("inspired by wifi_lib_test v0.3a by Stephen Stair");
 	print_to_console("Initializing Wifi...");
 	PA_InitWifi();
 
