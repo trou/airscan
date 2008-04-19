@@ -3,12 +3,18 @@
 
 #define DEBUG 1
 
+#define DISP_OPN 1
+#define DISP_WEP 2
+#define DISP_WPA 4
+
 #define MAX_Y_TEXT 24	// Number of vertical tiles
 #define MAX_X_TEXT 33	// Number of horiz tiles
 // Current console text
 char console[MAX_Y_TEXT][MAX_X_TEXT];
 int console_last = 0; /* index to the last added entry */
 int console_screen = 0, console_bg = 0;
+char debug = 0;
+int timeout = 30;
 
 void init_console(int screen, int bgnum)
 {
@@ -64,13 +70,15 @@ void abort_msg(char *msg)
 }
 
 struct AP_HT_Entry {
-	struct AP_HT_Entry *next;
-	Wifi_AccessPoint *ap;
+	struct AP_HT_Entry 	*next;
+	u32			tick;
+	Wifi_AccessPoint 	*ap;
 };
 
 struct AP_HT_Entry *ap_ht[256] = {NULL};
+int numap = 0;
 
-struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
+struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 {
 	struct AP_HT_Entry *res;
 
@@ -80,6 +88,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 		abort_msg("Alloc failed !");
 
 	res->ap = ap;
+	res->tick = tick;
 	res->next = NULL;
 
 	return res;	
@@ -101,14 +110,13 @@ struct AP_HT_Entry *find_ap(u8 *macaddr)
 	return NULL;
 }
 
-int insert_ap(Wifi_AccessPoint *ap)
+int insert_ap(Wifi_AccessPoint *ap, u32 tick)
 {
 	int key	= ap->macaddr[5];
 	Wifi_AccessPoint *ap_copy;
 	struct AP_HT_Entry *ht_entry;
 	char notpresent;
 #ifdef DEBUG
-	static int numap = 0;
 	static char num[MAX_X_TEXT];
 #endif
 
@@ -121,7 +129,7 @@ int insert_ap(Wifi_AccessPoint *ap)
 
 	// check if there's already an entry in the hash table
 	if (ap_ht[key] == NULL) {
-		ap_ht[key] = entry_from_ap(ap_copy);
+		ap_ht[key] = entry_from_ap(ap_copy, tick);
 	} else {
 		ht_entry = ap_ht[key];
 		// Check if the AP is already present, walking the linked list
@@ -129,45 +137,80 @@ int insert_ap(Wifi_AccessPoint *ap)
 			ht_entry = ht_entry->next;
 
 		if (notpresent)
-			ht_entry->next = entry_from_ap(ap_copy);
+			ht_entry->next = entry_from_ap(ap_copy, tick);
 		else {
+			// AP is already there, just update data
+			ht_entry->tick = tick;
+			ht_entry->ap->channel = ap->channel;
+			ht_entry->ap->rssi = ap->rssi;
+			ht_entry->ap->flags = ap->flags;
+			memcpy(ht_entry->ap->ssid, ap->ssid, ap->ssid_len > 32 ? 32 : ap->ssid_len);
 			free(ap_copy);
 			return 1;
 		}
 	}
-#ifdef DEBUG
 	numap++;
+#ifdef DEBUG
 	sprintf(num, "%d AP found !", numap);
 	print_to_console(num);
 #endif
-
 	return 0;
 }
+
 int display_list(int index, int flags) {
 	int i;
 	int displayed, seen;
 	struct AP_HT_Entry *cur;
 	char info1[MAX_X_TEXT];
 	char info2[MAX_X_TEXT];
+	char mode[4];
+	char stats[MAX_X_TEXT];
+	char modes[12];
 
 	PA_InitText(0,0);
 
+	displayed = 1; seen = 0;
 
-	displayed = 0; seen = 0;
-	PA_OutputSimpleText(0,0,0,"--------------------------------");
+	modes[0]=0;
+	if(flags&DISP_OPN) strcat(modes,"OPN+"); 
+	if(flags&DISP_WEP) strcat(modes,"WEP+"); 
+	if(flags&DISP_WPA) strcat(modes,"WPA+"); 
+	modes[strlen(modes)-1]=0;
+
+	snprintf(stats, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
+	PA_OutputSimpleText(0,0,0, stats);
+	PA_OutputSimpleText(0,0,1,"--------------------------------");
 	for(i=0; i<256; i++) {
 		cur = ap_ht[i];
 		while(cur) {
 			if(seen++ >= index) {
+				if (cur->ap->flags & WFLAG_APDATA_WPA) {
+					if (!(flags & DISP_WPA))
+						goto next;
+					strcpy(mode, "WPA");
+				}
+				else {
+					if (cur->ap->flags & WFLAG_APDATA_WEP) {
+						if (!(flags & DISP_WEP))
+							goto next;
+						strcpy(mode, "WEP");
+					} else {
+						if (!(flags & DISP_OPN))
+							goto next;
+						strcpy(mode, "OPN");
+					}
+				}
 				snprintf(info1, MAX_X_TEXT, "%s", cur->ap->ssid);
-				snprintf(info2, MAX_X_TEXT, "M:%02X%02X%02X%02X%02X%02X %04s",
+				snprintf(info2, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %4s c%02d %3d",
 					cur->ap->macaddr[0], cur->ap->macaddr[1], cur->ap->macaddr[2],
 					cur->ap->macaddr[3], cur->ap->macaddr[4], cur->ap->macaddr[5],
-					"WPA2");
-				PA_OutputSimpleText(0, 0, displayed*3+1, info1);
-				PA_OutputSimpleText(0, 0, displayed*3+2, info2);
+					mode, cur->ap->channel, (cur->ap->rssi*100)/0xD0);
+				PA_OutputSimpleText(0, 0, displayed*3, info1);
+				PA_OutputSimpleText(0, 0, displayed*3+1, info2);
+				PA_OutputSimpleText(0, 0, displayed*3+2,"--------------------------------");
 				displayed++;
 			}
+			next:
 			cur = cur->next;
 		}
 	}
@@ -175,10 +218,38 @@ int display_list(int index, int flags) {
 	return 0;
 }
 
+void clean_timeouts(u32 tick)
+{
+	struct AP_HT_Entry *cur, *prev;
+	char msg[MAX_X_TEXT];
+	int i;
+
+	for(i=0; i<256; i++) {
+		cur = ap_ht[i];
+		prev = NULL;
+		while(cur) {
+			if (tick-cur->tick > timeout*1000) {
+				snprintf(msg, MAX_X_TEXT, "Timeout : %s", cur->ap->ssid);
+				print_to_console(msg);
+				if (prev)
+					prev->next = cur->next;
+				else
+					ap_ht[i] = cur->next;
+				free(cur->ap);
+				free(cur);
+			}
+			prev = cur;
+			cur = cur->next;
+		}
+	}
+}
+
 int wardriving_loop()
 {
-	int num_aps, i;
+	int num_aps, i, index, flags;
 	Wifi_AccessPoint cur_ap;
+	char timerId;
+	u32 lasttick;
 
 	// Set scan mode
 	print_to_console("Setting scan mode...");
@@ -194,9 +265,15 @@ int wardriving_loop()
 	memcpy(cur_ap.bssid, mac1, 6);
 	memcpy(cur_ap.macaddr, mac2, 6);
 
-	insert_ap(&cur_ap);
+	insert_ap(&cur_ap, 0);
 #endif
 
+	flags = DISP_WPA|DISP_OPN|DISP_WEP;
+	index = 0;
+
+	StartTime(true);
+	timerId = NewTimer(true);
+	lasttick = Tick(timerId);
 	// Infinite loop to keep the program running
 	while (1)
 	{
@@ -204,12 +281,42 @@ int wardriving_loop()
 		for (i = 0; i < num_aps; i++) {
 			if(Wifi_GetAPData(i, &cur_ap) != WIFI_RETURN_OK)
 				continue;
-			if(!insert_ap(&cur_ap))
+			if(!insert_ap(&cur_ap, Tick(timerId)))
 				print_to_console(cur_ap.ssid);
 		}
-		if (Pad.Held.B)
-			print_to_console("B");
-		display_list(0, 0);
+		if (Pad.Newpress.Right)
+			timeout++;
+		if (Pad.Newpress.Left)
+			if(timeout > 0) timeout--;
+		
+		if (Pad.Newpress.Down)
+			index++;
+
+		if (Pad.Newpress.Up)
+			if(index>0) index--;
+
+		if (Pad.Newpress.B)
+			flags ^= DISP_OPN;
+		if (Pad.Newpress.A)
+			flags ^= DISP_WEP;
+		if (Pad.Newpress.X)
+			flags ^= DISP_WPA;
+
+		if (Pad.Newpress.Y) {
+			debug ^= 1;
+			if (debug)
+				print_to_console("Debug is now ON");
+			else
+				print_to_console("Debug is now OFF");
+		}
+
+		// Check timeouts every second
+		if (Tick(timerId)-lasttick > 1000) {
+			lasttick = Tick(timerId);
+			clean_timeouts(lasttick);
+		}
+
+		display_list(index, flags);
 		PA_WaitForVBL();
 	}
 }
