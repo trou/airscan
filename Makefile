@@ -4,7 +4,7 @@ ADD_LIBS +=
 
 PATH 		:= $(DEVKITARM)/bin:$(PATH)
 
-ARM7BIN		:= -7 $(PAPATH)/lib/arm7/arm7.bin
+ARM7BIN		:= -7 $(PAPATH)/lib/arm7_mp3_dswifi_me/arm7.bin
 TEXT1 		:= PAlib Project
 TEXT2 		:= using PAlib
 TEXT3 		:= www.palib.info
@@ -81,7 +81,7 @@ PREFIX			:=	arm-eabi-
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lfat -lnds9 -ldswifi9
+LIBS	:= -lfat -lnds9 $(CURDIR)/../dswifi/lib/libdswifi9.a
 LIBSPA	:= -lpa9
  
  

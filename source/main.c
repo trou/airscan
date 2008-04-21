@@ -224,7 +224,7 @@ int display_list(int index, int flags, int tick) {
 	return 0;
 }
 
-void clean_timeouts(u32 tick)
+void clean_timeouts()
 {
 	struct AP_HT_Entry *cur, *prev;
 	char msg[MAX_X_TEXT];
@@ -234,7 +234,9 @@ void clean_timeouts(u32 tick)
 		cur = ap_ht[i];
 		prev = NULL;
 		while(cur) {
-			if (tick-cur->tick > timeout*1000) {
+//				snprintf(msg, MAX_X_TEXT, "Timeout : %s", cur->ap->ssid);
+//				print_to_console(msg);
+			if (cur->ap->timectr > timeout) {
 				snprintf(msg, MAX_X_TEXT, "Timeout : %s", cur->ap->ssid);
 				print_to_console(msg);
 				if (prev)
@@ -243,6 +245,7 @@ void clean_timeouts(u32 tick)
 					ap_ht[i] = cur->next;
 				free(cur->ap);
 				free(cur);
+				numap--;
 			}
 			prev = cur;
 			cur = cur->next;
