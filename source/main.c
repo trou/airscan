@@ -157,22 +157,6 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 	return res;	
 }
 
-/*struct AP_HT_Entry *find_ap(u8 *macaddr)
-{
-	struct AP_HT_Entry *ht_entry;
-	int key = macaddr[5];
-	char notpresent;
-
-	if (ap_ht[key]) {
-		ht_entry = ap_ht[key];
-		while ((notpresent = memcmp(macaddr, ht_entry->ap->macaddr, 6)) != 0 && ht_entry->next)
-			ht_entry = ht_entry->next;
-		if(!notpresent)
-			return ht_entry;
-	} 
-	return NULL;
-}*/
-
 bool inline macaddr_cmp(void *mac1, void *mac2)
 {
 	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && (((u16 *)mac1)[2]==((u16 *)mac2)[2]);
@@ -191,10 +175,10 @@ int insert_ap(Wifi_AccessPoint *ap)
 		ht_entry = ap_ht[key];
 		// Check if the AP is already present, walking the linked list
 		//same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr);
-		while ((cmp = memcmp(ap->macaddr, ht_entry->ap->macaddr, 6)) != 0 && ht_entry->next)
+		while ((same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr, 6)) == 0 && ht_entry->next)
 			ht_entry = ht_entry->next;
 
-		if (cmp != 0)
+		if (cmp == 0)
 			ht_entry->next = entry_from_ap(ap);
 		else {
 			// AP is already there, just update data
@@ -353,7 +337,7 @@ int wardriving_loop()
 		// Check timeouts every second
 		if (timeout && (curtick-lasttick > 1000)) {
 			lasttick = Tick(timerId);
-		//	clean_timeouts(lasttick);
+			clean_timeouts(lasttick);
 		}
 
 		// Wait for VBL just before key handling and redraw

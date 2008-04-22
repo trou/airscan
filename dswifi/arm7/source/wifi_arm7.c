@@ -737,12 +737,15 @@ void Wifi_Update() {
                if(WifiData->aplist[i].flags & WFLAG_APDATA_ACTIVE) {
                   WifiData->aplist[i].timectr++;
                   if(WifiData->aplist[i].timectr>WIFI_AP_TIMEOUT) {
-//		     WifiData->aplist[i].flags ^= WFLAG_APDATA_ACTIVE;
-                     WifiData->aplist[i].rssi=0;
-                     WifiData->aplist[i].rssi_past[0]=WifiData->aplist[i].rssi_past[1]=
-                        WifiData->aplist[i].rssi_past[2]=WifiData->aplist[i].rssi_past[3]=
-                        WifiData->aplist[i].rssi_past[4]=WifiData->aplist[i].rssi_past[5]=
-                        WifiData->aplist[i].rssi_past[6]=WifiData->aplist[i].rssi_past[7]=0; // update rssi later.
+		     while(Spinlock_Acquire(WifiData->aplist[i]) != SPINLOCK_OK);
+		     {
+			     WifiData->aplist[i].flags ^= WFLAG_APDATA_ACTIVE;
+			     WifiData->aplist[i].rssi=0;
+			     WifiData->aplist[i].rssi_past[0]=WifiData->aplist[i].rssi_past[1]=
+				WifiData->aplist[i].rssi_past[2]=WifiData->aplist[i].rssi_past[3]=
+				WifiData->aplist[i].rssi_past[4]=WifiData->aplist[i].rssi_past[5]=
+				WifiData->aplist[i].rssi_past[6]=WifiData->aplist[i].rssi_past[7]=0; // update rssi later.
+	             }
                   }
                }
             }
