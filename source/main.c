@@ -217,7 +217,7 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 
 	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
 	PA_OutputSimpleText(0, 0, line*3, info);
-	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %4s c%02d %3d%% %lus",
+	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %lus",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
 		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
 		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0, 
@@ -280,7 +280,7 @@ int display_list(int index, int flags) {
 //		print_to_console(debugs);
 #endif
 		for (i=index; i < num_wpa && displayed < 8; i++) {
-			display_entry(displayed++, ap_wep[i], "WPA");
+			display_entry(displayed++, ap_wpa[i], "WPA");
 		}
 	}
 	return 0;
@@ -334,8 +334,7 @@ int wardriving_loop()
 	ap_wpa = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
 	if (ap_wpa == NULL) abort_msg("alloc failed (wpa)");
 
-//	flags = DISP_WPA|DISP_OPN|DISP_WEP;
-	flags = DISP_WPA;	
+	flags = DISP_WPA|DISP_OPN|DISP_WEP;
 	index = 0;
 
 	StartTime(true);

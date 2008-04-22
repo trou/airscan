@@ -737,7 +737,7 @@ void Wifi_Update() {
                if(WifiData->aplist[i].flags & WFLAG_APDATA_ACTIVE) {
                   WifiData->aplist[i].timectr++;
                   if(WifiData->aplist[i].timectr>WIFI_AP_TIMEOUT) {
-		     WifiData->aplist[i].flags ^= WFLAG_APDATA_ACTIVE;
+//		     WifiData->aplist[i].flags ^= WFLAG_APDATA_ACTIVE;
                      WifiData->aplist[i].rssi=0;
                      WifiData->aplist[i].rssi_past[0]=WifiData->aplist[i].rssi_past[1]=
                         WifiData->aplist[i].rssi_past[2]=WifiData->aplist[i].rssi_past[3]=
