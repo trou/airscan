@@ -737,7 +737,7 @@ void Wifi_Update() {
                if(WifiData->aplist[i].flags & WFLAG_APDATA_ACTIVE) {
                   WifiData->aplist[i].timectr++;
                   if(WifiData->aplist[i].timectr>WIFI_AP_TIMEOUT) {
-//		     WifiData->aplist[i].flags ^= WFLAG_APDATA_ACTIVE;
+		     WifiData->aplist[i].flags ^= WFLAG_APDATA_ACTIVE;
                      WifiData->aplist[i].rssi=0;
                      WifiData->aplist[i].rssi_past[0]=WifiData->aplist[i].rssi_past[1]=
                         WifiData->aplist[i].rssi_past[2]=WifiData->aplist[i].rssi_past[3]=
@@ -1374,7 +1374,6 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 						   num_uni_ciphers = data[j]+(data[j+1]<<8);
 						   j += 2;
 						   while (num_uni_ciphers-- && (j <= (curloc+seglen-4))) {
-						   //	   wpamode = 1;
 							   // check first 3 bytes
 							   if (data[j]==0x00 && data[j+1]==0x0f && data[j+2]==0xAC) {
 								j += 3;

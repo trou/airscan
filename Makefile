@@ -58,10 +58,10 @@ CFLAGS	:=	-g  -Wformat=2 -Winline -Wall -O2\
 		-ffast-math \
 		$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -I$(DEVKITPRO)/PAlib/include/nds
+CFLAGS	+=	$(INCLUDE) -DARM9 -I$(DEVKITPRO)/PAlib/include/nds -Wall
 
-ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	:=	-g $(ARCH) -mno-fpu -L$(DEVKITPRO)/PAlib/lib
+ASFLAGS	:=	-g $(ARCH) -Wall
+LDFLAGS	:=	-g $(ARCH) -mno-fpu -L$(DEVKITPRO)/PAlib/lib -Wall
 
 
 #---------------------------------------------------------------------------------

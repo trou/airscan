@@ -1,7 +1,7 @@
 // Includes
 #include <PA9.h>       // Include for PA_Lib
 
-#define DEBUG 0
+//#define DEBUG 0
 
 #define SCREEN_SEP "--------------------------------"
 
@@ -83,9 +83,15 @@ int numap = 0;
 struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 {
 	struct AP_HT_Entry *res;
+	Wifi_AccessPoint *ap_copy;
+
+	ap_copy = (Wifi_AccessPoint *) malloc(sizeof(Wifi_AccessPoint));
+	if (!ap_copy)
+		abort_msg("Alloc failed !");
+
+	memcpy(ap_copy, ap, sizeof(Wifi_AccessPoint));
 
 	res = (struct AP_HT_Entry *) malloc(sizeof(struct AP_HT_Entry));
-
 	if (!res)
 		abort_msg("Alloc failed !");
 
@@ -96,7 +102,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 	return res;	
 }
 
-struct AP_HT_Entry *find_ap(u8 *macaddr)
+/*struct AP_HT_Entry *find_ap(u8 *macaddr)
 {
 	struct AP_HT_Entry *ht_entry;
 	int key = macaddr[5];
@@ -110,36 +116,30 @@ struct AP_HT_Entry *find_ap(u8 *macaddr)
 			return ht_entry;
 	} 
 	return NULL;
+}*/
+
+bool inline CmpMacAddr(void *mac1, void *mac2)
+{
+	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && (((u16 *)mac1)[2]==((u16 *)mac2)[2]);
 }
 
 int insert_ap(Wifi_AccessPoint *ap, u32 tick)
 {
 	int key	= ap->macaddr[5];
-	Wifi_AccessPoint *ap_copy;
 	struct AP_HT_Entry *ht_entry;
 	char notpresent;
-#ifdef DEBUG
-	static char num[MAX_X_TEXT];
-#endif
-
-	ap_copy = (Wifi_AccessPoint *) malloc(sizeof(Wifi_AccessPoint));
-
-	if (!ap_copy)
-		abort_msg("Alloc failed !");
-
-	memcpy(ap_copy, ap, sizeof(Wifi_AccessPoint));
 
 	// check if there's already an entry in the hash table
 	if (ap_ht[key] == NULL) {
-		ap_ht[key] = entry_from_ap(ap_copy, tick);
+		ap_ht[key] = entry_from_ap(ap, tick);
 	} else {
 		ht_entry = ap_ht[key];
 		// Check if the AP is already present, walking the linked list
-		while ((notpresent = memcmp(ap->macaddr, ht_entry->ap->macaddr, 6)) != 0 && ht_entry->next)
+		while ((notpresent = CmpMacAddr(ap->macaddr, ht_entry->ap->macaddr))==false && ht_entry->next)
 			ht_entry = ht_entry->next;
 
 		if (notpresent)
-			ht_entry->next = entry_from_ap(ap_copy, tick);
+			ht_entry->next = entry_from_ap(ap, tick);
 		else {
 			// AP is already there, just update data
 			ht_entry->tick = tick;
@@ -147,15 +147,11 @@ int insert_ap(Wifi_AccessPoint *ap, u32 tick)
 			ht_entry->ap->rssi = ap->rssi;
 			ht_entry->ap->flags = ap->flags;
 			memcpy(ht_entry->ap->ssid, ap->ssid, ap->ssid_len > 32 ? 32 : ap->ssid_len);
-			free(ap_copy);
 			return 1;
 		}
 	}
 	numap++;
-#ifdef DEBUG
-	sprintf(num, "%d AP found !", numap);
-	print_to_console(num);
-#endif
+
 	return 0;
 }
 
@@ -224,7 +220,7 @@ int display_list(int index, int flags, int tick) {
 	return 0;
 }
 
-void clean_timeouts()
+void clean_timeouts(u32 tick)
 {
 	struct AP_HT_Entry *cur, *prev;
 	char msg[MAX_X_TEXT];
@@ -234,9 +230,7 @@ void clean_timeouts()
 		cur = ap_ht[i];
 		prev = NULL;
 		while(cur) {
-//				snprintf(msg, MAX_X_TEXT, "Timeout : %s", cur->ap->ssid);
-//				print_to_console(msg);
-			if (cur->ap->timectr > timeout) {
+			if (tick-(cur->tick) > timeout) {
 				snprintf(msg, MAX_X_TEXT, "Timeout : %s", cur->ap->ssid);
 				print_to_console(msg);
 				if (prev)
@@ -258,7 +252,7 @@ int wardriving_loop()
 	int num_aps, i, index, flags;
 	Wifi_AccessPoint cur_ap;
 	char timerId;
-	u32 lasttick;
+	u32 lasttick, curtick;
 
 	// Set scan mode
 	print_to_console("Setting scan mode...");
@@ -286,21 +280,29 @@ int wardriving_loop()
 	// Infinite loop to keep the program running
 	while (1)
 	{
+		curtick = Tick(timerId);
 		num_aps = Wifi_GetNumAP();
 		for (i = 0; i < num_aps; i++) {
 			if(Wifi_GetAPData(i, &cur_ap) != WIFI_RETURN_OK)
 				continue;
-			if(!insert_ap(&cur_ap, Tick(timerId)))
+			if(!insert_ap(&cur_ap, curtick) && debug)
 				print_to_console(cur_ap.ssid);
 		}
+		// Check timeouts every second
+		if (timeout && (curtick-lasttick > 1000)) {
+			lasttick = Tick(timerId);
+			clean_timeouts(lasttick);
+		}
+
+		// Wait for VBL just before key handling and redraw
+		PA_WaitForVBL();
 		if (Pad.Newpress.Right)
-			timeout++;
+			timeout += 1000;
 		if (Pad.Newpress.Left)
-			if(timeout > 0) timeout--;
+			if(timeout > 0) timeout -= 1000;
 		
 		if (Pad.Newpress.Down)
 			index++;
-
 		if (Pad.Newpress.Up)
 			if(index>0) index--;
 
@@ -319,15 +321,9 @@ int wardriving_loop()
 				print_to_console("Debug is now OFF");
 		}
 
-		// Check timeouts every second
-		if (timeout && (Tick(timerId)-lasttick > 1000)) {
-			lasttick = Tick(timerId);
-			clean_timeouts(lasttick);
-		}
-
-		display_list(index, flags, Tick(timerId));
-		PA_WaitForVBL();
+		display_list(index, flags, curtick);
 	}
+	return 0;
 }
 
 
