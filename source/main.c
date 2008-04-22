@@ -15,8 +15,11 @@
 char console[MAX_Y_TEXT][MAX_X_TEXT];
 int console_last = 0; /* index to the last added entry */
 int console_screen = 0, console_bg = 0;
+#ifdef DEBUG
 char debug = 0;
+#endif
 int timeout = 10;
+u32 curtick; // Current tick to handle timeout
 
 void init_console(int screen, int bgnum)
 {
@@ -92,7 +95,7 @@ unsigned int num_opn, num_wep, num_wpa;
 // Copy data from internal wifi storage
 // update tick
 // insert ptr into opn/wep/wpa tables
-struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
+struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 {
 	struct AP_HT_Entry *res;
 	Wifi_AccessPoint *ap_copy;
@@ -108,7 +111,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 		abort_msg("Alloc failed !");
 
 	res->ap = ap;
-	res->tick = tick;
+	res->tick = curtick;
 	res->next = NULL;
 
 	if (ap->flags&WFLAG_APDATA_WPA) {
@@ -116,6 +119,9 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 		if (num_wpa >= wpa_size) {
 			wpa_size *= 2;
 			realloc(ap_wpa, wpa_size);
+#ifdef DEBUG
+			if(debug) print_to_console("realloc'd wpa");
+#endif
 		}
 		ap_wpa[num_wpa++] = res;
 	} else {
@@ -124,6 +130,9 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 			if (num_wep >= wep_size) {
 				wep_size *= 2;
 				realloc(ap_wep, wep_size);
+#ifdef DEBUG
+			if(debug) print_to_console("realloc'd wep");
+#endif
 			}
 			ap_wep[num_wep++] = res;
 		} else {
@@ -131,6 +140,9 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 			if (num_opn >= opn_size) {
 				opn_size *= 2;
 				realloc(ap_opn, opn_size);
+#ifdef DEBUG
+			if(debug) print_to_console("realloc'd opn");
+#endif
 			}
 			ap_opn[num_opn++] = res;
 		}
@@ -155,12 +167,12 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 	return NULL;
 }*/
 
-bool inline CmpMacAddr(void *mac1, void *mac2)
+bool inline macaddr_cmp(void *mac1, void *mac2)
 {
 	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && (((u16 *)mac1)[2]==((u16 *)mac2)[2]);
 }
 
-int insert_ap(Wifi_AccessPoint *ap, u32 tick)
+int insert_ap(Wifi_AccessPoint *ap)
 {
 	int key	= ap->macaddr[5];
 	struct AP_HT_Entry *ht_entry;
@@ -168,18 +180,18 @@ int insert_ap(Wifi_AccessPoint *ap, u32 tick)
 
 	// check if there's already an entry in the hash table
 	if (ap_ht[key] == NULL) {
-		ap_ht[key] = entry_from_ap(ap, tick);
+		ap_ht[key] = entry_from_ap(ap);
 	} else {
 		ht_entry = ap_ht[key];
 		// Check if the AP is already present, walking the linked list
-		while ((notpresent = CmpMacAddr(ap->macaddr, ht_entry->ap->macaddr))==false && ht_entry->next)
+		while ((notpresent = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr))==false && ht_entry->next)
 			ht_entry = ht_entry->next;
 
 		if (notpresent)
-			ht_entry->next = entry_from_ap(ap, tick);
+			ht_entry->next = entry_from_ap(ap);
 		else {
 			// AP is already there, just update data
-			ht_entry->tick = tick;
+			ht_entry->tick = curtick;
 			ht_entry->ap->channel = ap->channel;
 			ht_entry->ap->rssi = ap->rssi;
 			ht_entry->ap->flags = ap->flags;
@@ -192,7 +204,7 @@ int insert_ap(Wifi_AccessPoint *ap, u32 tick)
 	return 0;
 }
 
-void display_entry(int line, struct AP_HT_Entry *entry, u32 tick, char *mode)
+void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 {
 	char info[MAX_X_TEXT];
 
@@ -202,12 +214,12 @@ void display_entry(int line, struct AP_HT_Entry *entry, u32 tick, char *mode)
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
 		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
 		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0, 
-		(tick-entry->tick)/1000);
+		(curtick-entry->tick)/1000);
 	PA_OutputSimpleText(0, 0, line*3+1, info);
 	PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
 }
 
-int display_list(int index, int flags, int tick) {
+int display_list(int index, int flags) {
 	int i;
 	int displayed, seen;
 	char info[MAX_X_TEXT];
@@ -226,32 +238,33 @@ int display_list(int index, int flags, int tick) {
 
 	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
 	PA_OutputSimpleText(0,0,0, info);
-	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d index:%d", num_opn, num_wep, num_wpa, index);
 	PA_OutputSimpleText(0,0,1, info);
+	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
+
 	if (flags&DISP_OPN) {
 		for (i=index; i < num_opn && displayed < 8; i++) {
-			display_entry(displayed++, ap_opn[i], tick, "OPN");
+			display_entry(displayed++, ap_opn[i], "OPN");
 		}
 		index -= num_opn;
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WEP) {
 		for (i=index; i < num_wep && displayed < 8; i++) {
-			display_entry(displayed++, ap_wep[i], tick, "WEP");
+			display_entry(displayed++, ap_wep[i], "WEP");
 		}
 		index -= num_wep;
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WPA) {
 		for (i=index; i < num_wpa && displayed < 8; i++) {
-			display_entry(displayed++, ap_wep[i], tick, "WPA");
+			display_entry(displayed++, ap_wep[i], "WPA");
 		}
 	}
 	return 0;
 }
 
-void clean_timeouts(u32 tick)
+void clean_timeouts()
 {
 	struct AP_HT_Entry *cur, *prev;
 	char msg[MAX_X_TEXT];
@@ -261,7 +274,7 @@ void clean_timeouts(u32 tick)
 		cur = ap_ht[i];
 		prev = NULL;
 		while(cur) {
-			if (tick-(cur->tick) > timeout) {
+			if (curtick-(cur->tick) > timeout) {
 				snprintf(msg, MAX_X_TEXT, "Timeout : %s", cur->ap->ssid);
 				print_to_console(msg);
 				if (prev)
@@ -283,7 +296,7 @@ int wardriving_loop()
 	int num_aps, i, index, flags;
 	Wifi_AccessPoint cur_ap;
 	char timerId;
-	u32 lasttick, curtick;
+	u32 lasttick;
 
 	// Set scan mode
 	print_to_console("Setting scan mode...");
@@ -322,8 +335,12 @@ int wardriving_loop()
 		for (i = 0; i < num_aps; i++) {
 			if(Wifi_GetAPData(i, &cur_ap) != WIFI_RETURN_OK)
 				continue;
+#ifdef DEBUG
 			if(!insert_ap(&cur_ap, curtick) && debug)
 				print_to_console(cur_ap.ssid);
+#else
+			insert_ap(&cur_ap);
+#endif
 		}
 		// Check timeouts every second
 		if (timeout && (curtick-lasttick > 1000)) {
@@ -349,7 +366,7 @@ int wardriving_loop()
 			flags ^= DISP_WEP;
 		if (Pad.Newpress.X)
 			flags ^= DISP_WPA;
-
+#ifdef DEBUG
 		if (Pad.Newpress.Y) {
 			debug ^= 1;
 			if (debug)
@@ -357,8 +374,9 @@ int wardriving_loop()
 			else
 				print_to_console("Debug is now OFF");
 		}
+#endif
 
-		display_list(index, flags, curtick);
+		display_list(index, flags);
 	}
 	return 0;
 }
@@ -377,7 +395,9 @@ int main(int argc, char ** argv)
 	print_to_console("B: Toggle OPN");
 	print_to_console("A: Toggle WEP");
 	print_to_console("X: Toggle WPA");
+#ifdef DEBUG
 	print_to_console("Y: Toggle debug");
+#endif
 	print_to_console("Up/Down : scroll");
 	print_to_console("Left/Right : Timeout -/+");
 	print_to_console("");
