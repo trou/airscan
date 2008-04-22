@@ -1,4 +1,4 @@
-// Includes
+//// Includes
 #include <PA9.h>       // Include for PA_Lib
 
 #define DEBUG 
@@ -88,9 +88,9 @@ unsigned int numap = 0;
 // Arrays of pointers for fast access
 struct AP_HT_Entry **ap_opn, **ap_wep, **ap_wpa;
 // Arrays size, to check if realloc is needed
-unsigned int opn_size, wep_size, wpa_size;
+int opn_size, wep_size, wpa_size;
 // Number of entries in each array
-unsigned int num_opn, num_wep, num_wpa;
+int num_opn, num_wep, num_wpa;
 
 // Copy data from internal wifi storage
 // update tick
@@ -118,7 +118,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 		// realloc needed
 		if (num_wpa >= wpa_size) {
 			wpa_size *= 2;
-			ap_wpa = realloc(ap_wpa, wpa_size);
+			ap_wpa = (struct AP_HT_Entry **)realloc(ap_wpa, wpa_size);
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wpa");
 #endif
@@ -131,7 +131,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 			// realloc needed
 			if (num_wep >= wep_size) {
 				wep_size *= 2;
-				ap_wep = realloc(ap_wep, wep_size);
+				ap_wep = (struct AP_HT_Entry **)realloc(ap_wep, wep_size);
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wep");
 #endif
@@ -143,7 +143,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 			// realloc needed
 			if (num_opn >= opn_size) {
 				opn_size *= 2;
-				ap_opn = realloc(ap_opn, opn_size);
+				ap_opn = (struct AP_HT_Entry **)realloc(ap_opn, opn_size);
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd opn");
 #endif
@@ -232,6 +232,9 @@ int display_list(int index, int flags) {
 	char info[MAX_X_TEXT];
 	char modes[12];
 	int opn, wep, wpa;
+#ifdef DEBUG
+	char debugs[MAX_X_TEXT];
+#endif
 
 	PA_InitText(0,0);
 
@@ -251,9 +254,8 @@ int display_list(int index, int flags) {
 
 	if (flags&DISP_OPN) {
 #ifdef DEBUG
-		char debugs[MAX_X_TEXT];
-		snprintf(debugs, MAX_X_TEXT, "Display OPEN : %d", displayed);
-	//	print_to_console(debugs);
+		snprintf(debugs, MAX_X_TEXT, "OPN : %d %d", index, displayed);
+//		print_to_console(debugs);
 #endif
 		for (i=index; i < num_opn && displayed < 8; i++) {
 			display_entry(displayed++, ap_opn[i], "OPN");
@@ -263,9 +265,8 @@ int display_list(int index, int flags) {
 	}
 	if (flags&DISP_WEP) {
 #ifdef DEBUG
-		char debugs[MAX_X_TEXT];
-		snprintf(debugs, MAX_X_TEXT, "Display WEP : %d", displayed);
-	//	print_to_console(debugs);
+		snprintf(debugs, MAX_X_TEXT, "WEP : %d %d", index, displayed);
+//		print_to_console(debugs);
 #endif
 		for (i=index; i < num_wep && displayed < 8; i++) {
 			display_entry(displayed++, ap_wep[i], "WEP");
@@ -275,9 +276,8 @@ int display_list(int index, int flags) {
 	}
 	if (flags&DISP_WPA) {
 #ifdef DEBUG
-		char debugs[MAX_X_TEXT];
-		snprintf(debugs, MAX_X_TEXT, "Display WPA : %d", displayed);
-	//	print_to_console(debugs);
+		snprintf(debugs, MAX_X_TEXT, "WPA : %d %d", index, displayed);
+//		print_to_console(debugs);
 #endif
 		for (i=index; i < num_wpa && displayed < 8; i++) {
 			display_entry(displayed++, ap_wep[i], "WPA");
@@ -328,10 +328,14 @@ int wardriving_loop()
 	opn_size = wep_size = wpa_size = DEFAULT_ALLOC_SIZE;
 	num_opn = num_wep = num_wpa = num_aps = 0;
 	ap_opn = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	if (ap_opn == NULL) abort_msg("alloc failed (opn)");
 	ap_wep = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	if (ap_wep == NULL) abort_msg("alloc failed (wep)");
 	ap_wpa = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	if (ap_wpa == NULL) abort_msg("alloc failed (wpa)");
 
-	flags = DISP_WPA|DISP_OPN|DISP_WEP;
+//	flags = DISP_WPA|DISP_OPN|DISP_WEP;
+	flags = DISP_WPA;	
 	index = 0;
 
 	StartTime(true);
@@ -350,7 +354,7 @@ int wardriving_loop()
 		// Check timeouts every second
 		if (timeout && (curtick-lasttick > 1000)) {
 			lasttick = Tick(timerId);
-			clean_timeouts(lasttick);
+		//	clean_timeouts(lasttick);
 		}
 
 		// Wait for VBL just before key handling and redraw
