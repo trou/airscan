@@ -166,7 +166,7 @@ int insert_ap(Wifi_AccessPoint *ap)
 {
 	int key	= ap->macaddr[5];
 	struct AP_HT_Entry *ht_entry;
-	int cmp;
+	int same;
 
 	// check if there's already an entry in the hash table
 	if (ap_ht[key] == NULL) {
@@ -175,10 +175,10 @@ int insert_ap(Wifi_AccessPoint *ap)
 		ht_entry = ap_ht[key];
 		// Check if the AP is already present, walking the linked list
 		//same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr);
-		while ((same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr, 6)) == 0 && ht_entry->next)
+		while ((same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr)) == 0 && ht_entry->next)
 			ht_entry = ht_entry->next;
 
-		if (cmp == 0)
+		if (same == 0)
 			ht_entry->next = entry_from_ap(ap);
 		else {
 			// AP is already there, just update data
