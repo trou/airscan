@@ -1,7 +1,7 @@
 // Includes
 #include <PA9.h>       // Include for PA_Lib
 
-//#define DEBUG 0
+#define DEBUG 
 
 #define SCREEN_SEP "--------------------------------"
 
@@ -16,9 +16,9 @@ char console[MAX_Y_TEXT][MAX_X_TEXT];
 int console_last = 0; /* index to the last added entry */
 int console_screen = 0, console_bg = 0;
 #ifdef DEBUG
-char debug = 0;
+char debug = 1;
 #endif
-int timeout = 10;
+int timeout = 0;
 u32 curtick; // Current tick to handle timeout
 
 void init_console(int screen, int bgnum)
@@ -110,7 +110,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 	if (!res)
 		abort_msg("Alloc failed !");
 
-	res->ap = ap;
+	res->ap = ap_copy;
 	res->tick = curtick;
 	res->next = NULL;
 
@@ -118,33 +118,39 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 		// realloc needed
 		if (num_wpa >= wpa_size) {
 			wpa_size *= 2;
-			realloc(ap_wpa, wpa_size);
+			ap_wpa = realloc(ap_wpa, wpa_size);
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wpa");
 #endif
 		}
 		ap_wpa[num_wpa++] = res;
+		print_to_console("WPA");
+		print_to_console(ap->ssid);
 	} else {
 		if (ap->flags&WFLAG_APDATA_WEP) {
 			// realloc needed
 			if (num_wep >= wep_size) {
 				wep_size *= 2;
-				realloc(ap_wep, wep_size);
+				ap_wep = realloc(ap_wep, wep_size);
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wep");
 #endif
 			}
 			ap_wep[num_wep++] = res;
+		print_to_console("WEP");
+		print_to_console(ap->ssid);
 		} else {
 			// realloc needed
 			if (num_opn >= opn_size) {
 				opn_size *= 2;
-				realloc(ap_opn, opn_size);
+				ap_opn = realloc(ap_opn, opn_size);
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd opn");
 #endif
 			}
 			ap_opn[num_opn++] = res;
+		print_to_console("OPN");
+		print_to_console(ap->ssid);
 		}
 	}
 
@@ -176,7 +182,7 @@ int insert_ap(Wifi_AccessPoint *ap)
 {
 	int key	= ap->macaddr[5];
 	struct AP_HT_Entry *ht_entry;
-	char notpresent;
+	int cmp;
 
 	// check if there's already an entry in the hash table
 	if (ap_ht[key] == NULL) {
@@ -184,10 +190,11 @@ int insert_ap(Wifi_AccessPoint *ap)
 	} else {
 		ht_entry = ap_ht[key];
 		// Check if the AP is already present, walking the linked list
-		while ((notpresent = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr))==false && ht_entry->next)
+		//same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr);
+		while ((cmp = memcmp(ap->macaddr, ht_entry->ap->macaddr, 6)) != 0 && ht_entry->next)
 			ht_entry = ht_entry->next;
 
-		if (notpresent)
+		if (cmp != 0)
 			ht_entry->next = entry_from_ap(ap);
 		else {
 			// AP is already there, just update data
@@ -243,6 +250,11 @@ int display_list(int index, int flags) {
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
 	if (flags&DISP_OPN) {
+#ifdef DEBUG
+		char debugs[MAX_X_TEXT];
+		snprintf(debugs, MAX_X_TEXT, "Display OPEN : %d", displayed);
+	//	print_to_console(debugs);
+#endif
 		for (i=index; i < num_opn && displayed < 8; i++) {
 			display_entry(displayed++, ap_opn[i], "OPN");
 		}
@@ -250,6 +262,11 @@ int display_list(int index, int flags) {
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WEP) {
+#ifdef DEBUG
+		char debugs[MAX_X_TEXT];
+		snprintf(debugs, MAX_X_TEXT, "Display WEP : %d", displayed);
+	//	print_to_console(debugs);
+#endif
 		for (i=index; i < num_wep && displayed < 8; i++) {
 			display_entry(displayed++, ap_wep[i], "WEP");
 		}
@@ -257,6 +274,11 @@ int display_list(int index, int flags) {
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WPA) {
+#ifdef DEBUG
+		char debugs[MAX_X_TEXT];
+		snprintf(debugs, MAX_X_TEXT, "Display WPA : %d", displayed);
+	//	print_to_console(debugs);
+#endif
 		for (i=index; i < num_wpa && displayed < 8; i++) {
 			display_entry(displayed++, ap_wep[i], "WPA");
 		}
@@ -302,21 +324,9 @@ int wardriving_loop()
 	print_to_console("Setting scan mode...");
 	Wifi_ScanMode();
 
-#ifdef DEBUG
-	char mac1[6]={0,1,2,3,4,5};
-	char mac2[6]={5,4,3,2,1,0};
-
-	memset(&cur_ap, 0, sizeof(cur_ap));
-	strcpy(cur_ap.ssid, "OzoneParis.net : Accès Libre");
-	cur_ap.ssid_len=strlen(cur_ap.ssid);
-	memcpy(cur_ap.bssid, mac1, 6);
-	memcpy(cur_ap.macaddr, mac2, 6);
-
-	insert_ap(&cur_ap, 0);
-#endif
-
 	// Allocate arrays
 	opn_size = wep_size = wpa_size = DEFAULT_ALLOC_SIZE;
+	num_opn = num_wep = num_wpa = num_aps = 0;
 	ap_opn = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
 	ap_wep = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
 	ap_wpa = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
@@ -335,12 +345,7 @@ int wardriving_loop()
 		for (i = 0; i < num_aps; i++) {
 			if(Wifi_GetAPData(i, &cur_ap) != WIFI_RETURN_OK)
 				continue;
-#ifdef DEBUG
-			if(!insert_ap(&cur_ap, curtick) && debug)
-				print_to_console(cur_ap.ssid);
-#else
 			insert_ap(&cur_ap);
-#endif
 		}
 		// Check timeouts every second
 		if (timeout && (curtick-lasttick > 1000)) {
@@ -375,7 +380,6 @@ int wardriving_loop()
 				print_to_console("Debug is now OFF");
 		}
 #endif
-
 		display_list(index, flags);
 	}
 	return 0;
