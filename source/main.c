@@ -77,9 +77,21 @@ struct AP_HT_Entry {
 	Wifi_AccessPoint 	*ap;
 };
 
-struct AP_HT_Entry *ap_ht[256] = {NULL};
-int numap = 0;
+#define DEFAULT_ALLOC_SIZE 100
 
+struct AP_HT_Entry *ap_ht[256] = {NULL};
+unsigned int numap = 0;
+
+// Arrays of pointers for fast access
+struct AP_HT_Entry **ap_opn, **ap_wep, **ap_wpa;
+// Arrays size, to check if realloc is needed
+unsigned int opn_size, wep_size, wpa_size;
+// Number of entries in each array
+unsigned int num_opn, num_wep, num_wpa;
+
+// Copy data from internal wifi storage
+// update tick
+// insert ptr into opn/wep/wpa tables
 struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 {
 	struct AP_HT_Entry *res;
@@ -98,6 +110,31 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap, u32 tick)
 	res->ap = ap;
 	res->tick = tick;
 	res->next = NULL;
+
+	if (ap->flags&WFLAG_APDATA_WPA) {
+		// realloc needed
+		if (num_wpa >= wpa_size) {
+			wpa_size *= 2;
+			realloc(ap_wpa, wpa_size);
+		}
+		ap_wpa[num_wpa++] = res;
+	} else {
+		if (ap->flags&WFLAG_APDATA_WEP) {
+			// realloc needed
+			if (num_wep >= wep_size) {
+				wep_size *= 2;
+				realloc(ap_wep, wep_size);
+			}
+			ap_wep[num_wep++] = res;
+		} else {
+			// realloc needed
+			if (num_opn >= opn_size) {
+				opn_size *= 2;
+				realloc(ap_opn, opn_size);
+			}
+			ap_opn[num_opn++] = res;
+		}
+	}
 
 	return res;	
 }
@@ -155,12 +192,25 @@ int insert_ap(Wifi_AccessPoint *ap, u32 tick)
 	return 0;
 }
 
+void display_entry(int line, struct AP_HT_Entry *entry, u32 tick, char *mode)
+{
+	char info[MAX_X_TEXT];
+
+	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
+	PA_OutputSimpleText(0, 0, line*3, info);
+	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %4s c%02d %3d%% %lus",
+		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
+		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
+		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0, 
+		(tick-entry->tick)/1000);
+	PA_OutputSimpleText(0, 0, line*3+1, info);
+	PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
+}
+
 int display_list(int index, int flags, int tick) {
 	int i;
 	int displayed, seen;
-	struct AP_HT_Entry *cur;
 	char info[MAX_X_TEXT];
-	char mode[4];
 	char modes[12];
 	int opn, wep, wpa;
 
@@ -177,46 +227,27 @@ int display_list(int index, int flags, int tick) {
 	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
 	PA_OutputSimpleText(0,0,0, info);
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
-	for(i=0; i<256; i++) {
-		cur = ap_ht[i];
-		while(cur) {
-			if(seen++ >= index) {
-				if (cur->ap->flags & WFLAG_APDATA_WPA) {
-					wpa++;
-					if (!(flags & DISP_WPA))
-						goto next;
-					strcpy(mode, "WPA");
-				}
-				else {
-					if (cur->ap->flags & WFLAG_APDATA_WEP) {
-						wep++;
-						if (!(flags & DISP_WEP))
-							goto next;
-						strcpy(mode, "WEP");
-					} else {
-						opn++;
-						if (!(flags & DISP_OPN))
-							goto next;
-						strcpy(mode, "OPN");
-					}
-				}
-				snprintf(info, MAX_X_TEXT, "%s", cur->ap->ssid);
-				PA_OutputSimpleText(0, 0, displayed*3, info);
-				snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %4s c%02d %3d%% %lus",
-					cur->ap->macaddr[0], cur->ap->macaddr[1], cur->ap->macaddr[2],
-					cur->ap->macaddr[3], cur->ap->macaddr[4], cur->ap->macaddr[5],
-					mode, cur->ap->channel, (cur->ap->rssi*100)/0xD0, 
-					(tick-cur->tick)/1000);
-				PA_OutputSimpleText(0, 0, displayed*3+1, info);
-				PA_OutputSimpleText(0, 0, displayed*3+2, SCREEN_SEP);
-				displayed++;
-			}
-			next:
-			cur = cur->next;
+	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d index:%d", num_opn, num_wep, num_wpa, index);
+	PA_OutputSimpleText(0,0,1, info);
+	if (flags&DISP_OPN) {
+		for (i=index; i < num_opn && displayed < 8; i++) {
+			display_entry(displayed++, ap_opn[i], tick, "OPN");
+		}
+		index -= num_opn;
+		if (index < 0) index = 0;
+	}
+	if (flags&DISP_WEP) {
+		for (i=index; i < num_wep && displayed < 8; i++) {
+			display_entry(displayed++, ap_wep[i], tick, "WEP");
+		}
+		index -= num_wep;
+		if (index < 0) index = 0;
+	}
+	if (flags&DISP_WPA) {
+		for (i=index; i < num_wpa && displayed < 8; i++) {
+			display_entry(displayed++, ap_wep[i], tick, "WPA");
 		}
 	}
-	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d index:%d", opn, wep, wpa, index);
-	PA_OutputSimpleText(0,0,1, info);
 	return 0;
 }
 
@@ -270,6 +301,12 @@ int wardriving_loop()
 
 	insert_ap(&cur_ap, 0);
 #endif
+
+	// Allocate arrays
+	opn_size = wep_size = wpa_size = DEFAULT_ALLOC_SIZE;
+	ap_opn = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	ap_wep = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	ap_wpa = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
 	index = 0;
