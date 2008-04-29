@@ -380,7 +380,7 @@ int main(int argc, char ** argv)
 
 	init_console(1,0);
 
-	print_to_console("AirScan v0.1 by Raphael Rigo");
+	print_to_console("AirScan v0.1.$revision$ by Raphael Rigo");
 	print_to_console("inspired by wifi_lib_test v0.3a by Stephen Stair");
 	print_to_console("");
 	print_to_console("B: Toggle OPN");
