@@ -1,0 +1,5 @@
+- handle timeouts correctly
+- when the stylus is used to "click" on a certain AP, switch to AP mode :
+	- packet sniffer
+	- try to connect (DHCP + standard IP)
+	- save IVs ? (for cracking with aircrack)

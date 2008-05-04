@@ -339,6 +339,10 @@ void wardriving_loop()
 			index++;
 		if (Pad.Newpress.Up && index > 0)
 			index--;
+		if (Pad.Newpress.R)
+			index += DISPLAY_LINES-1;
+		if (Pad.Newpress.L && index >= DISPLAY_LINES-1)
+			index -= DISPLAY_LINES-1;
 
 		if (Pad.Newpress.B)
 			flags ^= DISP_OPN;
