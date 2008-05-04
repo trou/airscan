@@ -252,6 +252,7 @@ void display_list(int index, int flags) {
 	return;
 }
 
+// Delete APs which have timeouted
 void clean_timeouts()
 {
 	struct AP_HT_Entry *cur, *prev;
@@ -279,7 +280,7 @@ void clean_timeouts()
 	}
 }
 
-int wardriving_loop()
+void wardriving_loop()
 {
 	int num_aps, i, index, flags;
 	Wifi_AccessPoint cur_ap;
@@ -309,7 +310,7 @@ int wardriving_loop()
 	StartTime(true);
 	timerId = NewTimer(true);
 	lasttick = Tick(timerId);
-	// Infinite loop to keep the program running
+	
 	while (1)
 	{
 		curtick = Tick(timerId);
@@ -329,13 +330,13 @@ int wardriving_loop()
 		PA_WaitForVBL();
 		if (Pad.Newpress.Right)
 			timeout += 1000;
-		if (Pad.Newpress.Left)
-			if(timeout > 0) timeout -= 1000;
+		if (Pad.Newpress.Left && timeout > 0)
+			timeout -= 1000;
 		
 		if (Pad.Newpress.Down)
 			index++;
-		if (Pad.Newpress.Up)
-			if(index>0) index--;
+		if (Pad.Newpress.Up && index > 0)
+			index--;
 
 		if (Pad.Newpress.B)
 			flags ^= DISP_OPN;
@@ -352,6 +353,7 @@ int wardriving_loop()
 			if(flags&DISP_WPA) strcat(modes,"WPA+");
 			modes[strlen(modes)-1]=0;
 		}
+
 #ifdef DEBUG
 		if (Pad.Newpress.Y) {
 			debug ^= 1;
@@ -363,7 +365,6 @@ int wardriving_loop()
 #endif
 		display_list(index, flags);
 	}
-	return 0;
 }
 
 
