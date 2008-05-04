@@ -1,0 +1,15 @@
+wifi_scanner is a basic wardriving utility for the Nintendo DS
+
+There is not much to know, basic usage information is displayed
+when launched.
+
+Known bugs :
+	- crashes when the number of APs is high (> 400)
+	- timeouts do not work atm
+
+Please the TODO files before mailing me.
+Do NOT mail me to ask me how to crack WEP/WPA ...
+
+Contact me by mail :
+mailbox : devel-nds
+domain : syscall.eu
