@@ -47,7 +47,7 @@ void print_to_console(char *str)
 	while (len > 0) {	
 		console_last = (console_last+1)%MAX_Y_TEXT;
 
-		if (len >= MAX_X_TEXT-1) {
+		if (len > MAX_X_TEXT-1) {
 			memcpy(console[console_last], str, MAX_X_TEXT-1);
 			str += MAX_X_TEXT-1;
 		} else {
@@ -259,6 +259,8 @@ void clean_timeouts()
 	char msg[MAX_X_TEXT];
 	int i;
 
+
+	// TODO : handle arrays
 	for(i=0; i<256; i++) {
 		cur = ap_ht[i];
 		prev = NULL;
