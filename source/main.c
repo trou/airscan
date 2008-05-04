@@ -20,6 +20,7 @@ char debug = 1;
 #endif
 int timeout = 0;
 u32 curtick; // Current tick to handle timeout
+char modes[12];		// Active display modes (OPN/WEP/WPA)
 
 // Setup an auto scrolling text screen
 // @screen = screen id
@@ -161,11 +162,14 @@ bool inline macaddr_cmp(void *mac1, void *mac2)
 	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && (((u16 *)mac1)[2]==((u16 *)mac2)[2]);
 }
 
-int insert_ap(Wifi_AccessPoint *ap)
+// Insert or update ap data in the hash table
+// returns 0 if the ap wasn't present
+// 1 otherwise
+char insert_ap(Wifi_AccessPoint *ap)
 {
 	int key	= ap->macaddr[5];
 	struct AP_HT_Entry *ht_entry;
-	int same;
+	char same;
 
 	// check if there's already an entry in the hash table
 	if (ap_ht[key] == NULL) {
@@ -173,7 +177,6 @@ int insert_ap(Wifi_AccessPoint *ap)
 	} else {
 		ht_entry = ap_ht[key];
 		// Check if the AP is already present, walking the linked list
-		//same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr);
 		while ((same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr)) == 0 && ht_entry->next)
 			ht_entry = ht_entry->next;
 
@@ -194,6 +197,7 @@ int insert_ap(Wifi_AccessPoint *ap)
 	return 0;
 }
 
+// Print "entry" on line "line"
 void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 {
 	char info[MAX_X_TEXT];
@@ -209,25 +213,16 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 	PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
 }
 
-int display_list(int index, int flags) {
+// Display APs
+void display_list(int index, int flags) {
+
+#define DISPLAY_LINES 8
+
 	int i;
-	int displayed, seen;
+	int displayed;		// Number of items already displayed
 	char info[MAX_X_TEXT];
-	char modes[12];
-	int opn, wep, wpa;
-#ifdef DEBUG
-	char debugs[MAX_X_TEXT];
-#endif
 
-	PA_InitText(0,0);
-
-	displayed = 1; seen = wpa = wep = opn = 0;
-
-	modes[0]=0;
-	if(flags&DISP_OPN) strcat(modes,"OPN+");
-	if(flags&DISP_WEP) strcat(modes,"WEP+");
-	if(flags&DISP_WPA) strcat(modes,"WPA+");
-	modes[strlen(modes)-1]=0;
+	displayed = 1;
 
 	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
 	PA_OutputSimpleText(0,0,0, info);
@@ -236,37 +231,25 @@ int display_list(int index, int flags) {
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
 	if (flags&DISP_OPN) {
-#ifdef DEBUG
-		snprintf(debugs, MAX_X_TEXT, "OPN : %d %d", index, displayed);
-//		print_to_console(debugs);
-#endif
-		for (i=index; i < num_opn && displayed < 8; i++) {
+		for (i=index; i < num_opn && displayed < DISPLAY_LINES; i++) {
 			display_entry(displayed++, ap_opn[i], "OPN");
 		}
 		index -= num_opn;
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WEP) {
-#ifdef DEBUG
-		snprintf(debugs, MAX_X_TEXT, "WEP : %d %d", index, displayed);
-//		print_to_console(debugs);
-#endif
-		for (i=index; i < num_wep && displayed < 8; i++) {
+		for (i=index; i < num_wep && displayed < DISPLAY_LINES; i++) {
 			display_entry(displayed++, ap_wep[i], "WEP");
 		}
 		index -= num_wep;
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WPA) {
-#ifdef DEBUG
-		snprintf(debugs, MAX_X_TEXT, "WPA : %d %d", index, displayed);
-//		print_to_console(debugs);
-#endif
-		for (i=index; i < num_wpa && displayed < 8; i++) {
+		for (i=index; i < num_wpa && displayed < DISPLAY_LINES; i++) {
 			display_entry(displayed++, ap_wpa[i], "WPA");
 		}
 	}
-	return 0;
+	return;
 }
 
 void clean_timeouts()
@@ -318,6 +301,9 @@ int wardriving_loop()
 	if (ap_wpa == NULL) abort_msg("alloc failed (wpa)");
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
+	strcpy(modes, "OPN+WEP+WPA");
+	// Init display screen
+	PA_InitText(0,0);
 	index = 0;
 
 	StartTime(true);
@@ -357,6 +343,15 @@ int wardriving_loop()
 			flags ^= DISP_WEP;
 		if (Pad.Newpress.X)
 			flags ^= DISP_WPA;
+
+		// Update modes string
+		if (Pad.Newpress.B || Pad.Newpress.A || Pad.Newpress.X) {
+			modes[0]=0;
+			if(flags&DISP_OPN) strcat(modes,"OPN+");
+			if(flags&DISP_WEP) strcat(modes,"WEP+");
+			if(flags&DISP_WPA) strcat(modes,"WPA+");
+			modes[strlen(modes)-1]=0;
+		}
 #ifdef DEBUG
 		if (Pad.Newpress.Y) {
 			debug ^= 1;
