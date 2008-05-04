@@ -224,9 +224,9 @@ void display_list(int index, int flags) {
 
 	displayed = 1;
 
-	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
+	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d                 ", numap, modes, timeout);
 	PA_OutputSimpleText(0,0,0, info);
-	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d index:%d", num_opn, num_wep, num_wpa, index);
+	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d idx:%d         ", num_opn, num_wep, num_wpa, index);
 	PA_OutputSimpleText(0,0,1, info);
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
