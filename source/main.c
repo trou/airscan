@@ -1,7 +1,7 @@
 //// Includes
 #include <PA9.h>       // Include for PA_Lib
 
-#define DEBUG 
+#define DEBUG
 
 #define SCREEN_SEP "--------------------------------"
 
@@ -21,6 +21,9 @@ char debug = 1;
 int timeout = 0;
 u32 curtick; // Current tick to handle timeout
 
+// Setup an auto scrolling text screen
+// @screen = screen id
+// @bgnum = background number
 void init_console(int screen, int bgnum)
 {
 	int i;
@@ -32,29 +35,27 @@ void init_console(int screen, int bgnum)
 
 	for (i = 0; i < MAX_Y_TEXT; i++)
 		console[i][MAX_X_TEXT-1] = 0;
-		
 }
 
-// add a line to scrolling display on screen 1
-// wrapping lines if necessary
-int print_to_console(char *str)
+// add a line to scrolling display wrapping lines if necessary
+void print_to_console(char *str)
 {
 	int i, pos, len;
 
-
 	len = strlen(str);
-	do {	
+	while (len > 0) {	
 		console_last = (console_last+1)%MAX_Y_TEXT;
 
-		if (len >= 32) {
-			memcpy(console[console_last], str, 32);
-			str += 32;
+		if (len >= MAX_X_TEXT-1) {
+			memcpy(console[console_last], str, MAX_X_TEXT-1);
+			str += MAX_X_TEXT-1;
 		} else {
+			// reset line to avoid garbage
 			memset(console[console_last], ' ', MAX_X_TEXT-1);
-			memcpy(console[console_last], str, len > 32 ? 32 : len);
+			memcpy(console[console_last], str, len);
 		}
 		len -= 32;
-	} while (len > 0);
+	}
 
 	i = console_last;
 	pos = MAX_Y_TEXT;
@@ -64,13 +65,13 @@ int print_to_console(char *str)
 		if (--i < 0) i = MAX_Y_TEXT-1;
 	} while (pos);
 
-	return 0;
+	return;
 }
 
 void abort_msg(char *msg)
 {
+	print_to_console("Fatal error :");
 	print_to_console(msg);
-	print_to_console("Looping...");
 	while(1) PA_WaitForVBL();
 }
 
@@ -80,11 +81,12 @@ struct AP_HT_Entry {
 	Wifi_AccessPoint 	*ap;
 };
 
+
+struct AP_HT_Entry *ap_ht[256] = {NULL}; // hash table
+unsigned int numap = 0;		  // number of APs
+
+// Default allocation size for arrays
 #define DEFAULT_ALLOC_SIZE 10
-
-struct AP_HT_Entry *ap_ht[256] = {NULL};
-unsigned int numap = 0;
-
 // Arrays of pointers for fast access
 struct AP_HT_Entry **ap_opn, **ap_wep, **ap_wpa;
 // Arrays size, to check if realloc is needed
@@ -119,42 +121,39 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 		if (num_wpa >= wpa_size) {
 			wpa_size *= 2;
 			ap_wpa = (struct AP_HT_Entry **)realloc(ap_wpa, wpa_size);
+			if (!ap_wpa) abort_msg("Alloc failed !");
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wpa");
 #endif
 		}
 		ap_wpa[num_wpa++] = res;
-		print_to_console("WPA");
-		print_to_console(ap->ssid);
 	} else {
 		if (ap->flags&WFLAG_APDATA_WEP) {
 			// realloc needed
 			if (num_wep >= wep_size) {
 				wep_size *= 2;
 				ap_wep = (struct AP_HT_Entry **)realloc(ap_wep, wep_size);
+				if (!ap_wep) abort_msg("Alloc failed !");
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wep");
 #endif
 			}
 			ap_wep[num_wep++] = res;
-		print_to_console("WEP");
-		print_to_console(ap->ssid);
 		} else {
 			// realloc needed
 			if (num_opn >= opn_size) {
 				opn_size *= 2;
 				ap_opn = (struct AP_HT_Entry **)realloc(ap_opn, opn_size);
+				if (!ap_opn) abort_msg("Alloc failed !");
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd opn");
 #endif
 			}
 			ap_opn[num_opn++] = res;
-		print_to_console("OPN");
-		print_to_console(ap->ssid);
 		}
 	}
 
-	return res;	
+	return res;
 }
 
 bool inline macaddr_cmp(void *mac1, void *mac2)
@@ -204,7 +203,7 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %lus",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
 		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
-		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0, 
+		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
 		(curtick-entry->tick)/1000);
 	PA_OutputSimpleText(0, 0, line*3+1, info);
 	PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
@@ -225,9 +224,9 @@ int display_list(int index, int flags) {
 	displayed = 1; seen = wpa = wep = opn = 0;
 
 	modes[0]=0;
-	if(flags&DISP_OPN) strcat(modes,"OPN+"); 
-	if(flags&DISP_WEP) strcat(modes,"WEP+"); 
-	if(flags&DISP_WPA) strcat(modes,"WPA+"); 
+	if(flags&DISP_OPN) strcat(modes,"OPN+");
+	if(flags&DISP_WEP) strcat(modes,"WEP+");
+	if(flags&DISP_WPA) strcat(modes,"WPA+");
 	modes[strlen(modes)-1]=0;
 
 	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
@@ -378,6 +377,7 @@ int main(int argc, char ** argv)
 	PA_Init();    // Initializes PA_Lib
 	PA_InitVBL(); // Initializes a standard VBL
 
+	// Setup logging console on top screen
 	init_console(1,0);
 
 	print_to_console("AirScan v0.1a by Raphael Rigo");
@@ -399,4 +399,4 @@ int main(int argc, char ** argv)
 	wardriving_loop();
 	
 	return 0;
-} // End of main()
+}
