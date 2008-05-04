@@ -71,7 +71,7 @@ extern u32 SLasm_Release(volatile u32 * lockaddr, u32 lockvalue);
 
 #define WIFI_RXBUFFER_SIZE	(1024*12)
 #define WIFI_TXBUFFER_SIZE	(1024*24)
-#define WIFI_MAX_AP			32
+#define WIFI_MAX_AP			64
 #define WIFI_MAX_ASSOC_RETRY	30
 #define WIFI_PS_POLL_CONST  2
 
