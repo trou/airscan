@@ -80,7 +80,7 @@ struct AP_HT_Entry {
 	Wifi_AccessPoint 	*ap;
 };
 
-#define DEFAULT_ALLOC_SIZE 100
+#define DEFAULT_ALLOC_SIZE 10
 
 struct AP_HT_Entry *ap_ht[256] = {NULL};
 unsigned int numap = 0;
@@ -380,7 +380,7 @@ int main(int argc, char ** argv)
 
 	init_console(1,0);
 
-	print_to_console("AirScan v0.1.$revision$ by Raphael Rigo");
+	print_to_console("AirScan v0.1a by Raphael Rigo");
 	print_to_console("inspired by wifi_lib_test v0.3a by Stephen Stair");
 	print_to_console("");
 	print_to_console("B: Toggle OPN");
