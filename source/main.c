@@ -202,7 +202,7 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 {
 	char info[MAX_X_TEXT];
 
-	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
+	snprintf(info, MAX_X_TEXT, "%s                               ", entry->ap->ssid);
 	PA_OutputSimpleText(0, 0, line*3, info);
 	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %lus",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
