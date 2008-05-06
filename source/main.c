@@ -87,7 +87,7 @@ struct AP_HT_Entry *ap_ht[256] = {NULL}; // hash table
 unsigned int numap = 0;		  // number of APs
 
 // Default allocation size for arrays
-#define DEFAULT_ALLOC_SIZE 10
+#define DEFAULT_ALLOC_SIZE 100
 // Arrays of pointers for fast access
 struct AP_HT_Entry **ap_opn, **ap_wep, **ap_wpa;
 // Arrays size, to check if realloc is needed
@@ -202,7 +202,7 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 {
 	char info[MAX_X_TEXT];
 
-	snprintf(info, MAX_X_TEXT, "%s                               ", entry->ap->ssid);
+	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
 	PA_OutputSimpleText(0, 0, line*3, info);
 	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %lus",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
@@ -224,9 +224,11 @@ void display_list(int index, int flags) {
 
 	displayed = 1;
 
-	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d                 ", numap, modes, timeout);
+	PA_ClearTextBg(0);
+
+	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
 	PA_OutputSimpleText(0,0,0, info);
-	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d idx:%d         ", num_opn, num_wep, num_wpa, index);
+	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d idx:%d", num_opn, num_wep, num_wpa, index);
 	PA_OutputSimpleText(0,0,1, info);
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
