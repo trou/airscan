@@ -3,4 +3,4 @@
 	- packet sniffer
 	- try to connect (DHCP + standard IP)
 	- save IVs ? (for cracking with aircrack)
-- add licence information
+- clarify licences : do i have the right to redistribute the various stuff ? (mainly arm7*)

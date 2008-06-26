@@ -2,6 +2,7 @@
  * AirScan - main.c
  *
  * Copyright 2008 Raphaël Rigo
+ *
  * For mails :
  * user : devel-nds
  * domain : syscall.eu
@@ -21,10 +22,9 @@
  */
 
 
-//// Includes
-#include <PA9.h>       // Include for PA_Lib
+#include <PA9.h>
 
-#define DEBUG
+//#define DEBUG
 
 #define SCREEN_SEP "--------------------------------"
 
@@ -32,22 +32,23 @@
 #define DISP_WEP 2
 #define DISP_WPA 4
 
-#define MAX_Y_TEXT 24	// Number of vertical tiles
-#define MAX_X_TEXT 33	// Number of horiz tiles
-// Current console text
-char console[MAX_Y_TEXT][MAX_X_TEXT];
-int console_last = 0; /* index to the last added entry */
+#define MAX_Y_TEXT 24			/* Number of vertical tiles */
+#define MAX_X_TEXT 33			/* Number of horiz tiles */
+
+char console[MAX_Y_TEXT][MAX_X_TEXT];	/* Current console text */
+int console_last = 0; 			/* index to the last added entry */
 int console_screen = 0, console_bg = 0;
+int timeout = 0;
+u32 curtick; 				/* Current tick to handle timeout */
+char modes[12];				/* display modes (OPN/WEP/WPA) */
 #ifdef DEBUG
 char debug = 1;
 #endif
-int timeout = 0;
-u32 curtick; // Current tick to handle timeout
-char modes[12];		// Active display modes (OPN/WEP/WPA)
 
-// Setup an auto scrolling text screen
-// @screen = screen id
-// @bgnum = background number
+/* Setup an auto scrolling text screen
+ * @screen = screen id
+ * @bgnum = background number
+ */
 void init_console(int screen, int bgnum)
 {
 	int i;
@@ -61,7 +62,7 @@ void init_console(int screen, int bgnum)
 		console[i][MAX_X_TEXT-1] = 0;
 }
 
-// add a line to scrolling display wrapping lines if necessary
+/* add a line to scrolling display wrapping lines if necessary */
 void print_to_console(char *str)
 {
 	int i, pos, len;
@@ -74,7 +75,7 @@ void print_to_console(char *str)
 			memcpy(console[console_last], str, MAX_X_TEXT-1);
 			str += MAX_X_TEXT-1;
 		} else {
-			// reset line to avoid garbage
+			/* reset line to avoid garbage */
 			memset(console[console_last], ' ', MAX_X_TEXT-1);
 			memcpy(console[console_last], str, len);
 		}
@@ -106,21 +107,22 @@ struct AP_HT_Entry {
 };
 
 
-struct AP_HT_Entry *ap_ht[256] = {NULL}; // hash table
-unsigned int numap = 0;		  // number of APs
+struct AP_HT_Entry *ap_ht[256] = {NULL};	/* hash table */
+unsigned int numap = 0;				/* number of APs */
 
-// Default allocation size for arrays
+/* Default allocation size for arrays */
 #define DEFAULT_ALLOC_SIZE 100
-// Arrays of pointers for fast access
+/* Arrays of pointers for fast access */
 struct AP_HT_Entry **ap_opn, **ap_wep, **ap_wpa;
-// Arrays size, to check if realloc is needed
+/* Arrays size, to check if realloc is needed */
 int opn_size, wep_size, wpa_size;
-// Number of entries in each array
+/* Number of entries in each array */
 int num_opn, num_wep, num_wpa;
 
-// Copy data from internal wifi storage
-// update tick
-// insert ptr into opn/wep/wpa tables
+/* Copy data from internal wifi storage
+ * update tick
+ * insert ptr into opn/wep/wpa tables
+ */
 struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 {
 	struct AP_HT_Entry *res;
@@ -141,7 +143,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 	res->next = NULL;
 
 	if (ap->flags&WFLAG_APDATA_WPA) {
-		// realloc needed
+		/* realloc needed */
 		if (num_wpa >= wpa_size) {
 			wpa_size *= 2;
 			ap_wpa = (struct AP_HT_Entry **)realloc(ap_wpa, wpa_size);
@@ -153,7 +155,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 		ap_wpa[num_wpa++] = res;
 	} else {
 		if (ap->flags&WFLAG_APDATA_WEP) {
-			// realloc needed
+			/* realloc needed */
 			if (num_wep >= wep_size) {
 				wep_size *= 2;
 				ap_wep = (struct AP_HT_Entry **)realloc(ap_wep, wep_size);
@@ -164,7 +166,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 			}
 			ap_wep[num_wep++] = res;
 		} else {
-			// realloc needed
+			/* realloc needed */
 			if (num_opn >= opn_size) {
 				opn_size *= 2;
 				ap_opn = (struct AP_HT_Entry **)realloc(ap_opn, opn_size);
@@ -185,33 +187,36 @@ bool inline macaddr_cmp(void *mac1, void *mac2)
 	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && (((u16 *)mac1)[2]==((u16 *)mac2)[2]);
 }
 
-// Insert or update ap data in the hash table
-// returns 0 if the ap wasn't present
-// 1 otherwise
+/* Insert or update ap data in the hash table
+ * returns 0 if the ap wasn't present
+ * 1 otherwise
+ */
 char insert_ap(Wifi_AccessPoint *ap)
 {
 	int key	= ap->macaddr[5];
 	struct AP_HT_Entry *ht_entry;
 	char same;
 
-	// check if there's already an entry in the hash table
+	/* check if there's already an entry in the hash table */
 	if (ap_ht[key] == NULL) {
 		ap_ht[key] = entry_from_ap(ap);
 	} else {
 		ht_entry = ap_ht[key];
-		// Check if the AP is already present, walking the linked list
-		while ((same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr)) == 0 && ht_entry->next)
+		/*Check if the AP is already present, walking the linked list*/
+		while (!(same = macaddr_cmp(ap->macaddr,ht_entry->ap->macaddr))
+			&& ht_entry->next)
 			ht_entry = ht_entry->next;
 
 		if (same == 0)
 			ht_entry->next = entry_from_ap(ap);
 		else {
-			// AP is already there, just update data
+			/* AP is already there, just update data */
 			ht_entry->tick = curtick;
 			ht_entry->ap->channel = ap->channel;
 			ht_entry->ap->rssi = ap->rssi;
 			ht_entry->ap->flags = ap->flags;
-			memcpy(ht_entry->ap->ssid, ap->ssid, ap->ssid_len > 32 ? 32 : ap->ssid_len);
+			memcpy(ht_entry->ap->ssid, ap->ssid, 
+				ap->ssid_len > 32 ? 32 : ap->ssid_len);
 			return 1;
 		}
 	}
@@ -220,7 +225,7 @@ char insert_ap(Wifi_AccessPoint *ap)
 	return 0;
 }
 
-// Print "entry" on line "line"
+/* Print "entry" on line "line" */
 void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 {
 	char info[MAX_X_TEXT];
@@ -236,13 +241,12 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 	PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
 }
 
-// Display APs
-void display_list(int index, int flags) {
-
+void display_list(int index, int flags)
+{
 #define DISPLAY_LINES 8
 
 	int i;
-	int displayed;		// Number of items already displayed
+	int displayed;		/* Number of items already displayed */
 	char info[MAX_X_TEXT];
 
 	displayed = 1;
@@ -277,7 +281,9 @@ void display_list(int index, int flags) {
 	return;
 }
 
-// Delete APs which have timeouted
+/* Delete APs which have timeouted
+ * not working due to the way I changed the lists
+ */
 void clean_timeouts()
 {
 	struct AP_HT_Entry *cur, *prev;
@@ -314,11 +320,9 @@ void wardriving_loop()
 	char timerId;
 	u32 lasttick;
 
-	// Set scan mode
 	print_to_console("Setting scan mode...");
 	Wifi_ScanMode();
 
-	// Allocate arrays
 	opn_size = wep_size = wpa_size = DEFAULT_ALLOC_SIZE;
 	num_opn = num_wep = num_wpa = num_aps = 0;
 	ap_opn = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
@@ -330,7 +334,8 @@ void wardriving_loop()
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
 	strcpy(modes, "OPN+WEP+WPA");
-	// Init display screen
+
+	/* Init display screen */
 	PA_InitText(0,0);
 	index = 0;
 
@@ -347,13 +352,13 @@ void wardriving_loop()
 				continue;
 			insert_ap(&cur_ap);
 		}
-		// Check timeouts every second
+		/* Check timeouts every second */
 		if (timeout && (curtick-lasttick > 1000)) {
 			lasttick = Tick(timerId);
 			clean_timeouts(lasttick);
 		}
 
-		// Wait for VBL just before key handling and redraw
+		/* Wait for VBL just before key handling and redraw */
 		PA_WaitForVBL();
 		if (Pad.Newpress.Right)
 			timeout += 1000;
@@ -376,7 +381,7 @@ void wardriving_loop()
 		if (Pad.Newpress.X)
 			flags ^= DISP_WPA;
 
-		// Update modes string
+		/* Update modes string */
 		if (Pad.Newpress.B || Pad.Newpress.A || Pad.Newpress.X) {
 			modes[0]=0;
 			if(flags&DISP_OPN) strcat(modes,"OPN+");
@@ -401,10 +406,10 @@ void wardriving_loop()
 
 int main(int argc, char ** argv)
 {
-	PA_Init();    // Initializes PA_Lib
-	PA_InitVBL(); // Initializes a standard VBL
+	PA_Init();    
+	PA_InitVBL();
 
-	// Setup logging console on top screen
+	/* Setup logging console on top screen */
 	init_console(1,0);
 
 	print_to_console("AirScan v0.1a by Raphael Rigo");
@@ -417,7 +422,7 @@ int main(int argc, char ** argv)
 	print_to_console("Y: Toggle debug");
 #endif
 	print_to_console("Up/Down : scroll");
-	print_to_console("Left/Right : Timeout -/+");
+	print_to_console("Left/Right : Timeout -/+ (NOT WORKING)");
 	print_to_console("");
 
 	print_to_console("Initializing Wifi...");

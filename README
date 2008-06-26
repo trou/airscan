@@ -1,13 +1,29 @@
-wifi_scanner is a basic wardriving utility for the Nintendo DS
+AirScan is a basic wardriving utility for the Nintendo DS
 
 There is not much to know, basic usage information is displayed
 when launched.
 
 Known bugs :
 	- crashes when the number of APs is high (> 400)
-	- timeouts do not work atm
+	- timeouts do NOT work at the moment
 
-Please the TODO files before mailing me.
+How to build :
+configure your build environment :
+export DEVKITPRO=xxx/devkitpro21/
+export DEVKITARM=xxx/devkitpro21/devkitARM/
+export PAPATH=xxx/devkitpro21/PAlib/
+export PATH=$PATH:$DEVKITARM/bin/
+cd dswifi
+make
+cd ../arm7_mp3_dswifi_me
+make
+cd ..
+make
+
+Why do I include dswifi and arm7* ?
+Because I patched dswifi a bit, I should try to push the patches upstream, but i'm a bit lazy
+
+Please read the TODO file before mailing me.
 Do NOT mail me to ask me how to crack WEP/WPA ...
 
 Contact me by mail :
