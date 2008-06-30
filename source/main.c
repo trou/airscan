@@ -292,6 +292,18 @@ void clean_timeouts()
 
 
 	// TODO : handle arrays
+	/* the problem is :
+	 * 	- deleting from the hash table is not a problem
+	 * 	- the arrays used for fast access during display are arrays,
+	 * 	not linked list, so I cannot easily delete from them
+	 *
+	 * Possible solutions :
+	 * 	- change from arrays to linked lists
+	 * 	- maintain a pointer to the first empty slot in array which
+	 * 	will be updated when needed => O(n) instead of O(1) but this
+	 * 	makes displaying more complicated (not that much)
+	 *
+	 */
 	for(i=0; i<256; i++) {
 		cur = ap_ht[i];
 		prev = NULL;
