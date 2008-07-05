@@ -24,7 +24,7 @@
 
 #include <PA9.h>
 
-//#define DEBUG
+#define DEBUG
 
 #define SCREEN_SEP "--------------------------------"
 
@@ -43,6 +43,7 @@ u32 curtick; 				/* Current tick to handle timeout */
 char modes[12];				/* display modes (OPN/WEP/WPA) */
 #ifdef DEBUG
 char debug = 1;
+char debug_str[255];
 #endif
 
 /* Setup an auto scrolling text screen
@@ -110,6 +111,7 @@ struct AP_HT_Entry {
 struct AP_HT_Entry *ap_ht[256] = {NULL};	/* hash table */
 unsigned int numap = 0;				/* number of APs */
 
+#define DISPLAY_LINES 8
 /* Default allocation size for arrays */
 #define DEFAULT_ALLOC_SIZE 100
 /* Arrays of pointers for fast access */
@@ -118,6 +120,8 @@ struct AP_HT_Entry **ap_opn, **ap_wep, **ap_wpa;
 int opn_size, wep_size, wpa_size;
 /* Number of entries in each array */
 int num_opn, num_wep, num_wpa;
+/* Currently displayed APs */
+struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
 
 /* Copy data from internal wifi storage
  * update tick
@@ -230,6 +234,9 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 {
 	char info[MAX_X_TEXT];
 
+	if (line < DISPLAY_LINES)
+		cur_entries[line] = entry;
+
 	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
 	PA_OutputSimpleText(0, 0, line*3, info);
 	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %lus",
@@ -243,8 +250,6 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 
 void display_list(int index, int flags)
 {
-#define DISPLAY_LINES 8
-
 	int i;
 	int displayed;		/* Number of items already displayed */
 	char info[MAX_X_TEXT];
@@ -392,6 +397,22 @@ void wardriving_loop()
 			flags ^= DISP_WEP;
 		if (Pad.Newpress.X)
 			flags ^= DISP_WPA;
+
+		/* Handle stylus press to display more detailed infos */
+		/* TODO : check race condition with AP insert */
+		if (Stylus.Newpress) {
+			int entry_n;
+			struct AP_HT_Entry *entry;
+			/* Entry number : 8 pixels for text, 3 lines */
+			entry_n = Stylus.Y/8/3;
+			entry = cur_entries[entry_n];
+#ifdef DEBUG
+			sprintf(debug_str, "Entry : Y : %d", entry_n);
+			print_to_console(debug_str);
+			if (entry)
+				print_to_console(entry->ap->ssid);
+#endif
+		}
 
 		/* Update modes string */
 		if (Pad.Newpress.B || Pad.Newpress.A || Pad.Newpress.X) {
