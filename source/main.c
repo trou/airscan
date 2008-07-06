@@ -42,9 +42,14 @@ int timeout = 0;
 u32 curtick; 				/* Current tick to handle timeout */
 char modes[12];				/* display modes (OPN/WEP/WPA) */
 #ifdef DEBUG
-char debug = 1;
-char debug_str[255];
+	char debug = 1;
+	char debug_str[255];
 #endif
+
+enum states {
+	STATE_SCANNING,
+	STATE_AP_DISPLAY
+};
 
 /* Setup an auto scrolling text screen
  * @screen = screen id
@@ -264,6 +269,8 @@ void display_list(int index, int flags)
 	PA_OutputSimpleText(0,0,1, info);
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
+	memset(cur_entries, 0, sizeof(cur_entries));
+
 	if (flags&DISP_OPN) {
 		for (i=index; i < num_opn && displayed < DISPLAY_LINES; i++) {
 			display_entry(displayed++, ap_opn[i], "OPN");
@@ -309,7 +316,7 @@ void clean_timeouts()
 	 * 	makes displaying more complicated (not that much)
 	 *
 	 */
-	for(i=0; i<256; i++) {
+	for(i = 0; i < 256; i++) {
 		cur = ap_ht[i];
 		prev = NULL;
 		while(cur) {
@@ -336,10 +343,16 @@ void wardriving_loop()
 	Wifi_AccessPoint cur_ap;
 	char timerId;
 	u32 lasttick;
+	char state;
+	/* Vars for AP_DISPLAY */
+	int entry_n;
+	struct AP_HT_Entry *entry;
 
 	print_to_console("Setting scan mode...");
 	Wifi_ScanMode();
 
+
+	state = STATE_SCANNING;
 	opn_size = wep_size = wpa_size = DEFAULT_ALLOC_SIZE;
 	num_opn = num_wep = num_wpa = num_aps = 0;
 	ap_opn = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
@@ -362,13 +375,34 @@ void wardriving_loop()
 	
 	while (1)
 	{
+		switch (state) {
+			case STATE_SCANNING:
 		curtick = Tick(timerId);
+
+		/* Handle stylus press to display more detailed infos 
+ 		 * handle this before AP insertion, to avoid race
+		 * conditions */
+		if (Stylus.Newpress) {
+			/* Entry number : 8 pixels for text, 3 lines */
+			entry_n = Stylus.Y/8/3;
+			entry = cur_entries[entry_n];
+#ifdef DEBUG
+			sprintf(debug_str, "Entry : Y : %d", entry_n);
+			print_to_console(debug_str);
+#endif
+			if (entry) {
+				print_to_console(entry->ap->ssid);
+				state = STATE_AP_DISPLAY;
+			}
+		}
+
 		num_aps = Wifi_GetNumAP();
 		for (i = 0; i < num_aps; i++) {
 			if(Wifi_GetAPData(i, &cur_ap) != WIFI_RETURN_OK)
 				continue;
 			insert_ap(&cur_ap);
 		}
+
 		/* Check timeouts every second */
 		if (timeout && (curtick-lasttick > 1000)) {
 			lasttick = Tick(timerId);
@@ -398,29 +432,13 @@ void wardriving_loop()
 		if (Pad.Newpress.X)
 			flags ^= DISP_WPA;
 
-		/* Handle stylus press to display more detailed infos */
-		/* TODO : check race condition with AP insert */
-		if (Stylus.Newpress) {
-			int entry_n;
-			struct AP_HT_Entry *entry;
-			/* Entry number : 8 pixels for text, 3 lines */
-			entry_n = Stylus.Y/8/3;
-			entry = cur_entries[entry_n];
-#ifdef DEBUG
-			sprintf(debug_str, "Entry : Y : %d", entry_n);
-			print_to_console(debug_str);
-			if (entry)
-				print_to_console(entry->ap->ssid);
-#endif
-		}
-
 		/* Update modes string */
 		if (Pad.Newpress.B || Pad.Newpress.A || Pad.Newpress.X) {
-			modes[0]=0;
+			modes[0] = 0;
 			if(flags&DISP_OPN) strcat(modes,"OPN+");
 			if(flags&DISP_WEP) strcat(modes,"WEP+");
 			if(flags&DISP_WPA) strcat(modes,"WPA+");
-			modes[strlen(modes)-1]=0;
+			modes[strlen(modes)-1] = 0;
 		}
 
 #ifdef DEBUG
@@ -433,6 +451,13 @@ void wardriving_loop()
 		}
 #endif
 		display_list(index, flags);
+		break;
+
+		case STATE_AP_DISPLAY:
+			print_to_console("kikoo");
+			state = STATE_SCANNING;
+			break;
+		}
 	}
 }
 
