@@ -51,6 +51,13 @@ enum states {
 	STATE_AP_DISPLAY
 };
 
+enum display_states {
+	STATE_PACKET,
+	STATE_CONNECTING,
+	STATE_CONNECTED,
+	STATE_ERROR
+};
+
 /* Setup an auto scrolling text screen
  * @screen = screen id
  * @bgnum = background number
@@ -343,16 +350,18 @@ void wardriving_loop()
 	Wifi_AccessPoint cur_ap;
 	char timerId;
 	u32 lasttick;
-	char state;
+	char state, display_state;
 	/* Vars for AP_DISPLAY */
 	int entry_n;
-	struct AP_HT_Entry *entry;
+	struct AP_HT_Entry *entry = NULL;
 
 	print_to_console("Setting scan mode...");
 	Wifi_ScanMode();
 
 
 	state = STATE_SCANNING;
+	state = STATE_PACKET;
+
 	opn_size = wep_size = wpa_size = DEFAULT_ALLOC_SIZE;
 	num_opn = num_wep = num_wpa = num_aps = 0;
 	ap_opn = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
@@ -454,8 +463,27 @@ void wardriving_loop()
 		break;
 
 		case STATE_AP_DISPLAY:
+			/* TODO:
+			 * 1) default to packet display
+			 * 2) try DHCP
+			 * 3) try default IPs
+			 * 4) handle WEP ?
+			 */
 			print_to_console("kikoo");
+			/* Try to connect */
+			if (!(entry->ap->flags&WFLAG_APDATA_WPA) &&
+				!(entry->ap->flags&WFLAG_APDATA_WEP)
+				&& display_state == STATE_PACKET) {
+					int ret;
+					Wifi_DisconnectAP();
+					ret = Wifi_ConnectAP(entry->ap,
+							WEPMODE_NONE, 0,
+							NULL);
+					if(ret)
+						print_to_console("error connecting");
+			}
 			state = STATE_SCANNING;
+			display_state = STATE_PACKET;
 			break;
 		}
 	}
