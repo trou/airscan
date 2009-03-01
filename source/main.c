@@ -218,7 +218,7 @@ char insert_ap(Wifi_AccessPoint *ap)
 		ap_ht[key] = entry_from_ap(ap);
 	} else {
 		ht_entry = ap_ht[key];
-		/*Check if the AP is already present, walking the linked list*/
+		/* Check if the AP is already present, walking the linked list */
 		while (!(same = macaddr_cmp(ap->macaddr,ht_entry->ap->macaddr))
 			&& ht_entry->next)
 			ht_entry = ht_entry->next;
@@ -266,13 +266,14 @@ void display_list(int index, int flags)
 	int displayed;		/* Number of items already displayed */
 	char info[MAX_X_TEXT];
 
+	/* header */
 	displayed = 1;
 
 	PA_ClearTextBg(0);
 
-	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%d", numap, modes, timeout);
+	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%03d", numap, modes, timeout);
 	PA_OutputSimpleText(0,0,0, info);
-	snprintf(info, MAX_X_TEXT, "OPN:%d WEP:%d WPA:%d idx:%d", num_opn, num_wep, num_wpa, index);
+	snprintf(info, MAX_X_TEXT, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num_opn, num_wep, num_wpa, index);
 	PA_OutputSimpleText(0,0,1, info);
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
@@ -322,7 +323,11 @@ void clean_timeouts()
 	 * 	will be updated when needed => O(n) instead of O(1) but this
 	 * 	makes displaying more complicated (not that much)
 	 *
+	 * remark : timeouts are only handled once every second :
+	 * it is logical to put complexity in timeout handling
 	 */
+
+	/* walk the whole hash table */
 	for(i = 0; i < 256; i++) {
 		cur = ap_ht[i];
 		prev = NULL;
@@ -334,6 +339,17 @@ void clean_timeouts()
 					prev->next = cur->next;
 				else
 					ap_ht[i] = cur->next;
+
+				/* algorithm :
+					find entry in fast table access (add a ref ?)
+					null it
+					update null entry counter
+					check if index is < current null entry (if any)
+					if true replace current null entry
+					else no nothing
+
+					add null entry search in add_ap
+				*/
 				free(cur->ap);
 				free(cur);
 				numap--;
