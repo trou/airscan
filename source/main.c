@@ -298,22 +298,31 @@ void display_list(int index, int flags)
 	memset(cur_entries, 0, sizeof(cur_entries));
 
 	if (flags&DISP_OPN) {
-		for (i=index; i < num[OPN] && displayed < DISPLAY_LINES; i++) {
-			display_entry(displayed++, ap[OPN][i], "OPN");
+		i = (first_null[OPN] >= 0 && index > first_null[OPN] ?
+			first_null[OPN] : index);
+		for (; i < (num[OPN]+num_null[OPN]) && displayed < DISPLAY_LINES; i++) {
+			if (ap[OPN][i])
+				display_entry(displayed++, ap[OPN][i], "OPN");
 		}
 		index -= num[OPN];
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WEP) {
-		for (i=index; i < num[WEP] && displayed < DISPLAY_LINES; i++) {
-			display_entry(displayed++, ap[WEP][i], "WEP");
+		i = (first_null[WEP] >= 0 && index > first_null[WEP] ?
+			first_null[WEP] : index);
+		for (; i < (num[WEP]+num_null[WEP]) && displayed < DISPLAY_LINES; i++) {
+			if (ap[WEP][i])
+				display_entry(displayed++, ap[WEP][i], "WEP");
 		}
 		index -= num[WEP];
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WPA) {
-		for (i=index; i < num[WPA] && displayed < DISPLAY_LINES; i++) {
-			display_entry(displayed++, ap[WPA][i], "WPA");
+		i = (first_null[WPA] >= 0 && index > first_null[WPA] ?
+			first_null[WPA] : index);
+		for (; i < (num[WPA]+num_null[WPA]) && displayed < DISPLAY_LINES; i++) {
+			if (ap[WPA][i])
+				display_entry(displayed++, ap[WPA][i], "WPA");
 		}
 	}
 	return;
@@ -328,22 +337,6 @@ void clean_timeouts()
 	char msg[MAX_X_TEXT];
 	int i;
 
-
-	// TODO : handle arrays
-	/* the problem is :
-	 * 	- deleting from the hash table is not a problem
-	 * 	- the arrays used for fast access during display are arrays,
-	 * 	not linked list, so I cannot easily delete from them
-	 *
-	 * Possible solutions :
-	 * 	- change from arrays to linked lists
-	 * 	- maintain a pointer to the first empty slot in array which
-	 * 	will be updated when needed => O(n) instead of O(1) but this
-	 * 	makes displaying more complicated (not that much)
-	 *
-	 * remark : timeouts are only handled once every second :
-	 * it is logical to put complexity in timeout handling
-	 */
 
 	/* walk the whole hash table */
 	for(i = 0; i < 256; i++) {
