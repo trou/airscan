@@ -141,7 +141,7 @@ struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
  */
 struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 {
-	struct AP_HT_Entry *res;
+	struct AP_HT_Entry *new_ht_ap;
 	Wifi_AccessPoint *ap_copy;
 
 	ap_copy = (Wifi_AccessPoint *) malloc(sizeof(Wifi_AccessPoint));
@@ -150,52 +150,52 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 
 	memcpy(ap_copy, ap, sizeof(Wifi_AccessPoint));
 
-	res = (struct AP_HT_Entry *) malloc(sizeof(struct AP_HT_Entry));
-	if (!res)
+	new_ht_ap = (struct AP_HT_Entry *) malloc(sizeof(struct AP_HT_Entry));
+	if (!new_ht_ap)
 		abort_msg("Alloc failed !");
 
-	res->ap = ap_copy;
-	res->tick = curtick;
-	res->next = NULL;
+	new_ht_ap->ap = ap_copy;
+	new_ht_ap->tick = curtick;
+	new_ht_ap->next = NULL;
 
-	if (ap->flags&WFLAG_APDATA_WPA) {
+	if (ap_copy->flags&WFLAG_APDATA_WPA) {
 		/* realloc needed */
 		if (num_wpa >= wpa_size) {
-			wpa_size *= 2;
+			wpa_size += DEFAULT_ALLOC_SIZE;
 			ap_wpa = (struct AP_HT_Entry **)realloc(ap_wpa, wpa_size);
 			if (!ap_wpa) abort_msg("Alloc failed !");
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wpa");
 #endif
 		}
-		ap_wpa[num_wpa++] = res;
+		ap_wpa[num_wpa++] = new_ht_ap;
 	} else {
-		if (ap->flags&WFLAG_APDATA_WEP) {
+		if (ap_copy->flags&WFLAG_APDATA_WEP) {
 			/* realloc needed */
 			if (num_wep >= wep_size) {
-				wep_size *= 2;
+				wep_size += DEFAULT_ALLOC_SIZE;
 				ap_wep = (struct AP_HT_Entry **)realloc(ap_wep, wep_size);
 				if (!ap_wep) abort_msg("Alloc failed !");
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd wep");
 #endif
 			}
-			ap_wep[num_wep++] = res;
+			ap_wep[num_wep++] = new_ht_ap;
 		} else {
 			/* realloc needed */
 			if (num_opn >= opn_size) {
-				opn_size *= 2;
+				opn_size += DEFAULT_ALLOC_SIZE;
 				ap_opn = (struct AP_HT_Entry **)realloc(ap_opn, opn_size);
 				if (!ap_opn) abort_msg("Alloc failed !");
 #ifdef DEBUG
 			if(debug) print_to_console("realloc'd opn");
 #endif
 			}
-			ap_opn[num_opn++] = res;
+			ap_opn[num_opn++] = new_ht_ap;
 		}
 	}
 
-	return res;
+	return new_ht_ap;
 }
 
 bool inline macaddr_cmp(void *mac1, void *mac2)
@@ -348,7 +348,7 @@ void wardriving_loop()
 {
 	int num_aps, i, index, flags;
 	Wifi_AccessPoint cur_ap;
-	char timerId;
+	char timer_id;
 	u32 lasttick;
 	char state, display_state;
 	/* Vars for AP_DISPLAY */
@@ -379,14 +379,14 @@ void wardriving_loop()
 	index = 0;
 
 	StartTime(true);
-	timerId = NewTimer(true);
-	lasttick = Tick(timerId);
+	timer_id = NewTimer(true);
+	lasttick = Tick(timer_id);
 	
 	while (1)
 	{
 		switch (state) {
 			case STATE_SCANNING:
-		curtick = Tick(timerId);
+		curtick = Tick(timer_id);
 
 		/* Handle stylus press to display more detailed infos 
  		 * handle this before AP insertion, to avoid race
@@ -414,7 +414,7 @@ void wardriving_loop()
 
 		/* Check timeouts every second */
 		if (timeout && (curtick-lasttick > 1000)) {
-			lasttick = Tick(timerId);
+			lasttick = Tick(timer_id);
 			clean_timeouts(lasttick);
 		}
 
@@ -429,7 +429,7 @@ void wardriving_loop()
 			index++;
 		if (Pad.Newpress.Up && index > 0)
 			index--;
-		if (Pad.Newpress.R)
+		if (Pad.Newpress.R && index+(DISPLAY_LINES-1) <= num_aps)
 			index += DISPLAY_LINES-1;
 		if (Pad.Newpress.L && index >= DISPLAY_LINES-1)
 			index -= DISPLAY_LINES-1;
@@ -447,7 +447,7 @@ void wardriving_loop()
 			if(flags&DISP_OPN) strcat(modes,"OPN+");
 			if(flags&DISP_WEP) strcat(modes,"WEP+");
 			if(flags&DISP_WPA) strcat(modes,"WPA+");
-			modes[strlen(modes)-1] = 0;
+			modes[strlen(modes)-1] = 0; /* remove the + */
 		}
 
 #ifdef DEBUG
@@ -498,7 +498,7 @@ int main(int argc, char ** argv)
 	/* Setup logging console on top screen */
 	init_console(1,0);
 
-	print_to_console("AirScan v0.1a by Raphael Rigo");
+	print_to_console("AirScan v0.2 by Raphael Rigo");
 	print_to_console("inspired by wifi_lib_test v0.3a by Stephen Stair");
 	print_to_console("");
 	print_to_console("B: Toggle OPN");
