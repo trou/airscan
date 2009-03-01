@@ -398,17 +398,14 @@ void wardriving_loop()
 	state = STATE_SCANNING;
 	state = STATE_PACKET;
 
-	sizes[OPN] = sizes[WEP] = sizes[WPA] = DEFAULT_ALLOC_SIZE;
-	num[OPN] = num[WEP] = num[WPA] = num_aps = 0;
-	num_null[OPN] = num_null[WEP] = num_null[WPA] = 0;
-	first_null[OPN] = first_null[WEP] = first_null[WPA] = 0;
-
-	ap[OPN] = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
-	if (ap[OPN] == NULL) abort_msg("alloc failed (opn)");
-	ap[WEP] = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
-	if (ap[WEP] == NULL) abort_msg("alloc failed (wep)");
-	ap[WPA] = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
-	if (ap[WPA] == NULL) abort_msg("alloc failed (wpa)");
+	for (i = 0; i < 3; i++) {
+		sizes[i] = DEFAULT_ALLOC_SIZE;
+		num[i] = num_null[i] = 0;
+		first_null[i] = -1;
+		ap[i] = (struct AP_HT_Entry **) malloc(sizes[i]*sizeof(struct AP_HT_Entry *));
+		if (ap[i] == NULL) abort_msg("alloc failed");
+	}
+	num_aps = 0;
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
 	strcpy(modes, "OPN+WEP+WPA");
