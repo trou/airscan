@@ -46,6 +46,12 @@ char modes[12];				/* display modes (OPN/WEP/WPA) */
 	char debug_str[255];
 #endif
 
+enum array_indexes {
+	OPN = 0,
+	WEP,
+	WPA
+};
+
 enum states {
 	STATE_SCANNING,
 	STATE_AP_DISPLAY
@@ -127,13 +133,49 @@ unsigned int numap = 0;				/* number of APs */
 /* Default allocation size for arrays */
 #define DEFAULT_ALLOC_SIZE 100
 /* Arrays of pointers for fast access */
-struct AP_HT_Entry **ap_opn, **ap_wep, **ap_wpa;
+struct AP_HT_Entry **ap[3];
 /* Arrays size, to check if realloc is needed */
-int opn_size, wep_size, wpa_size;
+int sizes[3];
 /* Number of entries in each array */
-int num_opn, num_wep, num_wpa;
+int num[3];
+/* Number of NULL entries in each array */
+int num_null[3];
+/* First NULL entry */
+int first_null[3];
+
 /* Currently displayed APs */
 struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
+
+void do_realloc(int type)
+{
+	/* realloc needed */
+	if (num[type] >= sizes[type]) {
+		sizes[type] += DEFAULT_ALLOC_SIZE;
+		ap[type] = (struct AP_HT_Entry **)realloc(ap[type], sizes[type]);
+		if (!ap[type]) abort_msg("Alloc failed !");
+#ifdef DEBUG
+		if(debug) print_to_console("realloc'd");
+#endif
+	}
+}
+
+/* Insert the new AP in the fast access list
+   and update the NULL entries if needed */
+void do_insert_fast(int type, struct AP_HT_Entry *new_ap)
+{
+	/* Any NULL entry (timeouts) ? */
+	if (num_null[type] > 0) {
+		num_null[type]--;
+		ap[type][first_null[type]] = new_ap;
+		if (num_null[type])
+			while(ap[type][++first_null[type]]);
+		else
+			first_null[type] = -1;
+	} else {
+		ap[type][num[type]] = new_ap;
+	}
+	num[type]++;
+}
 
 /* Copy data from internal wifi storage
  * update tick
@@ -159,39 +201,15 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 	new_ht_ap->next = NULL;
 
 	if (ap_copy->flags&WFLAG_APDATA_WPA) {
-		/* realloc needed */
-		if (num_wpa >= wpa_size) {
-			wpa_size += DEFAULT_ALLOC_SIZE;
-			ap_wpa = (struct AP_HT_Entry **)realloc(ap_wpa, wpa_size);
-			if (!ap_wpa) abort_msg("Alloc failed !");
-#ifdef DEBUG
-			if(debug) print_to_console("realloc'd wpa");
-#endif
-		}
-		ap_wpa[num_wpa++] = new_ht_ap;
+		do_realloc(WPA);
+		do_insert_fast(WPA, new_ht_ap);
 	} else {
 		if (ap_copy->flags&WFLAG_APDATA_WEP) {
-			/* realloc needed */
-			if (num_wep >= wep_size) {
-				wep_size += DEFAULT_ALLOC_SIZE;
-				ap_wep = (struct AP_HT_Entry **)realloc(ap_wep, wep_size);
-				if (!ap_wep) abort_msg("Alloc failed !");
-#ifdef DEBUG
-			if(debug) print_to_console("realloc'd wep");
-#endif
-			}
-			ap_wep[num_wep++] = new_ht_ap;
+			do_realloc(WEP);
+			do_insert_fast(WEP, new_ht_ap);
 		} else {
-			/* realloc needed */
-			if (num_opn >= opn_size) {
-				opn_size += DEFAULT_ALLOC_SIZE;
-				ap_opn = (struct AP_HT_Entry **)realloc(ap_opn, opn_size);
-				if (!ap_opn) abort_msg("Alloc failed !");
-#ifdef DEBUG
-			if(debug) print_to_console("realloc'd opn");
-#endif
-			}
-			ap_opn[num_opn++] = new_ht_ap;
+			do_realloc(OPN);
+			do_insert_fast(OPN, new_ht_ap);
 		}
 	}
 
@@ -273,29 +291,29 @@ void display_list(int index, int flags)
 
 	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%03d", numap, modes, timeout);
 	PA_OutputSimpleText(0,0,0, info);
-	snprintf(info, MAX_X_TEXT, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num_opn, num_wep, num_wpa, index);
+	snprintf(info, MAX_X_TEXT, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], num[WEP], num[WPA], index);
 	PA_OutputSimpleText(0,0,1, info);
 	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
 	memset(cur_entries, 0, sizeof(cur_entries));
 
 	if (flags&DISP_OPN) {
-		for (i=index; i < num_opn && displayed < DISPLAY_LINES; i++) {
-			display_entry(displayed++, ap_opn[i], "OPN");
+		for (i=index; i < num[OPN] && displayed < DISPLAY_LINES; i++) {
+			display_entry(displayed++, ap[OPN][i], "OPN");
 		}
-		index -= num_opn;
+		index -= num[OPN];
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WEP) {
-		for (i=index; i < num_wep && displayed < DISPLAY_LINES; i++) {
-			display_entry(displayed++, ap_wep[i], "WEP");
+		for (i=index; i < num[WEP] && displayed < DISPLAY_LINES; i++) {
+			display_entry(displayed++, ap[WEP][i], "WEP");
 		}
-		index -= num_wep;
+		index -= num[WEP];
 		if (index < 0) index = 0;
 	}
 	if (flags&DISP_WPA) {
-		for (i=index; i < num_wpa && displayed < DISPLAY_LINES; i++) {
-			display_entry(displayed++, ap_wpa[i], "WPA");
+		for (i=index; i < num[WPA] && displayed < DISPLAY_LINES; i++) {
+			display_entry(displayed++, ap[WPA][i], "WPA");
 		}
 	}
 	return;
@@ -378,14 +396,17 @@ void wardriving_loop()
 	state = STATE_SCANNING;
 	state = STATE_PACKET;
 
-	opn_size = wep_size = wpa_size = DEFAULT_ALLOC_SIZE;
-	num_opn = num_wep = num_wpa = num_aps = 0;
-	ap_opn = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
-	if (ap_opn == NULL) abort_msg("alloc failed (opn)");
-	ap_wep = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
-	if (ap_wep == NULL) abort_msg("alloc failed (wep)");
-	ap_wpa = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
-	if (ap_wpa == NULL) abort_msg("alloc failed (wpa)");
+	sizes[OPN] = sizes[WEP] = sizes[WPA] = DEFAULT_ALLOC_SIZE;
+	num[OPN] = num[WEP] = num[WPA] = num_aps = 0;
+	num_null[OPN] = num_null[WEP] = num_null[WPA] = 0;
+	first_null[OPN] = first_null[WEP] = first_null[WPA] = 0;
+
+	ap[OPN] = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	if (ap[OPN] == NULL) abort_msg("alloc failed (opn)");
+	ap[WEP] = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	if (ap[WEP] == NULL) abort_msg("alloc failed (wep)");
+	ap[WPA] = (struct AP_HT_Entry **) malloc(DEFAULT_ALLOC_SIZE*sizeof(struct AP_HT_Entry *));
+	if (ap[WPA] == NULL) abort_msg("alloc failed (wpa)");
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
 	strcpy(modes, "OPN+WEP+WPA");
