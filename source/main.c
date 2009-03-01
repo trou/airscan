@@ -292,7 +292,7 @@ void display_list(int index, int flags)
 
 	PA_ClearTextBg(0);
 
-	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%03d", numap, modes, timeout);
+	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
 	PA_OutputSimpleText(0,0,0, info);
 	snprintf(info, MAX_X_TEXT, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], num[WEP], num[WPA], index);
 	PA_OutputSimpleText(0,0,1, info);
