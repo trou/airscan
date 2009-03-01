@@ -123,6 +123,7 @@ struct AP_HT_Entry {
 	struct AP_HT_Entry 	*next;
 	u32			tick;
 	Wifi_AccessPoint 	*ap;
+	int			array_idx;
 };
 
 
@@ -166,12 +167,14 @@ void do_insert_fast(int type, struct AP_HT_Entry *new_ap)
 	/* Any NULL entry (timeouts) ? */
 	if (num_null[type] > 0) {
 		num_null[type]--;
+		new_ap->array_idx = first_null[type];
 		ap[type][first_null[type]] = new_ap;
 		if (num_null[type])
 			while(ap[type][++first_null[type]]);
 		else
 			first_null[type] = -1;
 	} else {
+		new_ap->array_idx = num[type];
 		ap[type][num[type]] = new_ap;
 	}
 	num[type]++;
@@ -335,7 +338,7 @@ void clean_timeouts()
 {
 	struct AP_HT_Entry *cur, *prev;
 	char msg[MAX_X_TEXT];
-	int i;
+	int i, type, idx;
 
 
 	/* walk the whole hash table */
@@ -351,16 +354,22 @@ void clean_timeouts()
 				else
 					ap_ht[i] = cur->next;
 
-				/* algorithm :
-					find entry in fast table access (add a ref ?)
-					null it
-					update null entry counter
-					check if index is < current null entry (if any)
-					if true replace current null entry
-					else no nothing
+				if (cur->ap->flags&WFLAG_APDATA_WPA) {
+					type = WPA;
+				} else {
+					if (cur->ap->flags&WFLAG_APDATA_WEP)
+						type = WEP;
+					else 
+						type = OPN;	
+				}
+				idx = cur->array_idx;
 
-					add null entry search in add_ap
-				*/
+				ap[type][idx] = NULL;
+				if (num_null[type] == 0 || idx < first_null[type])
+					first_null[type] = idx;
+				num_null[type]++;
+				num[type]--;
+
 				free(cur->ap);
 				free(cur);
 				numap--;
