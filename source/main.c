@@ -24,7 +24,7 @@
 
 #include <PA9.h>
 
-#define DEBUG
+//#define DEBUG
 
 #define SCREEN_SEP "--------------------------------"
 

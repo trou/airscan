@@ -26,6 +26,14 @@ Because I patched dswifi a bit, I should try to push the patches upstream, but i
 Please read the TODO file before mailing me.
 Do NOT mail me to ask me how to crack WEP/WPA ...
 
+History :
+v0.2  : 02/03/2008
+	- Timeouts are now working
+
+v0.1a : 26/06/2008
+	- Initial public release
+
+
 Contact me by mail :
 mailbox : devel-nds
 domain : syscall.eu
