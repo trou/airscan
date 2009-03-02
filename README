@@ -4,8 +4,7 @@ There is not much to know, basic usage information is displayed
 when launched.
 
 Known bugs :
-	- crashes when the number of APs is high (> 400)
-	- timeouts do NOT work at the moment
+	- crashes sometimes when the number of APs is high (> 400)
 
 How to build :
 configure your build environment :
