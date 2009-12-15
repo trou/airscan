@@ -118,11 +118,18 @@ void print_to_console(char *str)
 	return;
 }
 
+void print_xy(char *str, int x, int y)
+{
+	char buffer[128];
+	sprintf(buffer, "\x1b[%d;%dH%s", x, y, str);
+	iprintf(buffer);
+}
+
 void abort_msg(char *msg)
 {
 	print_to_console("Fatal error :");
 	print_to_console(msg);
-//	while(1) //PA_WaitForVBL();
+	while(1) swiWaitForVBlank();
 }
 
 struct AP_HT_Entry {
@@ -538,6 +545,7 @@ void wardriving_loop()
 
 int main(int argc, char ** argv)
 {
+	PrintConsole *defaultConsole;
 	/* Setup logging console on top screen */
 	init_console(1,0);
 
@@ -556,6 +564,15 @@ int main(int argc, char ** argv)
 
 	print_to_console("Initializing Wifi...");
 	Wifi_InitDefault(INIT_ONLY);
+	
+	defaultConsole = consoleGetDefault();
+	videoSetMode(MODE_0_2D);
+	vramSetBankC(VRAM_C_MAIN_BG); 
+
+	consoleInit(NULL, defaultConsole->bgLayer, BgType_Text4bpp, BgSize_T_256x256, defaultConsole->mapBase, defaultConsole->gfxBase, true, true);
+
+	printf("test");
+	return 0;
 
 	wardriving_loop();
 	
