@@ -26,7 +26,7 @@
 #include <nds.h>
 #include <dswifi9.h>
 
-//#define DEBUG
+#define DEBUG
 
 #define SCREEN_SEP "--------------------------------"
 
@@ -73,7 +73,9 @@ enum display_states {
 void init_console(int screen, int bgnum)
 {
 	int i;
-	
+
+	consoleDemoInit();
+	return ;
 	console_screen = screen;
 	console_bg = bgnum;
 	//PA_InitText(screen, bgnum);
@@ -86,6 +88,8 @@ void init_console(int screen, int bgnum)
 /* add a line to scrolling display wrapping lines if necessary */
 void print_to_console(char *str)
 {
+	printf("%s\n", str);
+	return; 
 	int i, pos, len;
 
 	len = strlen(str);
@@ -399,7 +403,6 @@ void wardriving_loop()
 
 
 	state = STATE_SCANNING;
-	state = STATE_PACKET;
 
 	for (i = 0; i < 3; i++) {
 		sizes[i] = DEFAULT_ALLOC_SIZE;
@@ -426,14 +429,12 @@ void wardriving_loop()
 		switch (state) {
 			case STATE_SCANNING:
 		//curtick = Tick(timer_id);
-
 		scanKeys();
 		pressed = keysDown();
 
 		/* Handle stylus press to display more detailed infos 
  		 * handle this before AP insertion, to avoid race
 		 * conditions */
-
 		if (pressed & KEY_TOUCH) {
 			touchRead(&touchXY);
 			/* Entry number : 8 pixels for text, 3 lines */
@@ -464,6 +465,7 @@ void wardriving_loop()
 
 		/* Wait for VBL just before key handling and redraw */
 		//PA_WaitForVBL();
+		swiWaitForVBlank();
 		if (pressed & KEY_RIGHT)
 			timeout += 1000;
 		if (pressed & KEY_LEFT && timeout > 0)
@@ -536,9 +538,6 @@ void wardriving_loop()
 
 int main(int argc, char ** argv)
 {
-	//PA_Init();    
-	//PA_InitVBL();
-
 	/* Setup logging console on top screen */
 	init_console(1,0);
 
@@ -556,7 +555,7 @@ int main(int argc, char ** argv)
 	print_to_console("");
 
 	print_to_console("Initializing Wifi...");
-	//PA_InitWifi();
+	Wifi_InitDefault(INIT_ONLY);
 
 	wardriving_loop();
 	
