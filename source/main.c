@@ -22,7 +22,9 @@
  */
 
 
-#include <PA9.h>
+#include <stdio.h>
+#include <nds.h>
+#include <dswifi9.h>
 
 //#define DEBUG
 
@@ -74,8 +76,8 @@ void init_console(int screen, int bgnum)
 	
 	console_screen = screen;
 	console_bg = bgnum;
-	PA_InitText(screen, bgnum);
-	PA_SetTextCol(screen, 31, 31, 31);
+	//PA_InitText(screen, bgnum);
+	//PA_SetTextCol(screen, 31, 31, 31);
 
 	for (i = 0; i < MAX_Y_TEXT; i++)
 		console[i][MAX_X_TEXT-1] = 0;
@@ -105,7 +107,7 @@ void print_to_console(char *str)
 	pos = MAX_Y_TEXT;
 	do {
 		pos--;
-		PA_OutputText(console_screen, console_bg, pos, console[i]);
+		//PA_OutputText(console_screen, console_bg, pos, console[i]);
 		if (--i < 0) i = MAX_Y_TEXT-1;
 	} while (pos);
 
@@ -116,7 +118,7 @@ void abort_msg(char *msg)
 {
 	print_to_console("Fatal error :");
 	print_to_console(msg);
-	while(1) PA_WaitForVBL();
+//	while(1) //PA_WaitForVBL();
 }
 
 struct AP_HT_Entry {
@@ -271,14 +273,14 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 		cur_entries[line] = entry;
 
 	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
-	PA_OutputSimpleText(0, 0, line*3, info);
+	//PA_OutputSimpleText(0, 0, line*3, info);
 	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %ds",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
 		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
 		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
 		(curtick-entry->tick)/1000);
-	PA_OutputSimpleText(0, 0, line*3+1, info);
-	PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
+	//PA_OutputSimpleText(0, 0, line*3+1, info);
+	//PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
 }
 
 void display_list(int index, int flags)
@@ -290,13 +292,13 @@ void display_list(int index, int flags)
 	/* header */
 	displayed = 1;
 
-	PA_ClearTextBg(0);
+	//PA_ClearTextBg(0);
 
 	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
-	PA_OutputSimpleText(0,0,0, info);
+	//PA_OutputSimpleText(0,0,0, info);
 	snprintf(info, MAX_X_TEXT, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], num[WEP], num[WPA], index);
-	PA_OutputSimpleText(0,0,1, info);
-	PA_OutputSimpleText(0,0,2, SCREEN_SEP);
+	//PA_OutputSimpleText(0,0,1, info);
+	//PA_OutputSimpleText(0,0,2, SCREEN_SEP);
 
 	memset(cur_entries, 0, sizeof(cur_entries));
 
@@ -382,7 +384,8 @@ void clean_timeouts()
 
 void wardriving_loop()
 {
-	int num_aps, i, index, flags;
+	int num_aps, i, index, flags, pressed;
+	touchPosition touchXY;
 	Wifi_AccessPoint cur_ap;
 	char timer_id;
 	u32 lasttick;
@@ -411,25 +414,30 @@ void wardriving_loop()
 	strcpy(modes, "OPN+WEP+WPA");
 
 	/* Init display screen */
-	PA_InitText(0,0);
+	//PA_InitText(0,0);
 	index = 0;
 
-	StartTime(true);
-	timer_id = NewTimer(true);
-	lasttick = Tick(timer_id);
+	//StartTime(true);
+	//timer_id = NewTimer(true);
+	//lasttick = Tick(timer_id);
 	
 	while (1)
 	{
 		switch (state) {
 			case STATE_SCANNING:
-		curtick = Tick(timer_id);
+		//curtick = Tick(timer_id);
+
+		scanKeys();
+		pressed = keysDown();
 
 		/* Handle stylus press to display more detailed infos 
  		 * handle this before AP insertion, to avoid race
 		 * conditions */
-		if (Stylus.Newpress) {
+
+		if (pressed & KEY_TOUCH) {
+			touchRead(&touchXY);
 			/* Entry number : 8 pixels for text, 3 lines */
-			entry_n = Stylus.Y/8/3;
+			entry_n = touchXY.py/8/3;
 			entry = cur_entries[entry_n];
 #ifdef DEBUG
 			sprintf(debug_str, "Entry : Y : %d", entry_n);
@@ -450,35 +458,35 @@ void wardriving_loop()
 
 		/* Check timeouts every second */
 		if (timeout && (curtick-lasttick > 1000)) {
-			lasttick = Tick(timer_id);
+			//lasttick = Tick(timer_id);
 			clean_timeouts(lasttick);
 		}
 
 		/* Wait for VBL just before key handling and redraw */
-		PA_WaitForVBL();
-		if (Pad.Newpress.Right)
+		//PA_WaitForVBL();
+		if (pressed & KEY_RIGHT)
 			timeout += 1000;
-		if (Pad.Newpress.Left && timeout > 0)
+		if (pressed & KEY_LEFT && timeout > 0)
 			timeout -= 1000;
 		
-		if (Pad.Newpress.Down)
+		if (pressed & KEY_DOWN)
 			index++;
-		if (Pad.Newpress.Up && index > 0)
+		if (pressed & KEY_UP && index > 0)
 			index--;
-		if (Pad.Newpress.R && index+(DISPLAY_LINES-1) <= num_aps)
+		if (pressed & KEY_R && index+(DISPLAY_LINES-1) <= num_aps)
 			index += DISPLAY_LINES-1;
-		if (Pad.Newpress.L && index >= DISPLAY_LINES-1)
+		if (pressed & KEY_L && index >= DISPLAY_LINES-1)
 			index -= DISPLAY_LINES-1;
 
-		if (Pad.Newpress.B)
+		if (pressed & KEY_B)
 			flags ^= DISP_OPN;
-		if (Pad.Newpress.A)
+		if (pressed & KEY_A)
 			flags ^= DISP_WEP;
-		if (Pad.Newpress.X)
+		if (pressed & KEY_X)
 			flags ^= DISP_WPA;
 
 		/* Update modes string */
-		if (Pad.Newpress.B || Pad.Newpress.A || Pad.Newpress.X) {
+		if (pressed & KEY_B || pressed & KEY_A || pressed & KEY_X) {
 			modes[0] = 0;
 			if(flags&DISP_OPN) strcat(modes,"OPN+");
 			if(flags&DISP_WEP) strcat(modes,"WEP+");
@@ -487,7 +495,7 @@ void wardriving_loop()
 		}
 
 #ifdef DEBUG
-		if (Pad.Newpress.Y) {
+		if (pressed & KEY_Y) {
 			debug ^= 1;
 			if (debug)
 				print_to_console("Debug is now ON");
@@ -528,8 +536,8 @@ void wardriving_loop()
 
 int main(int argc, char ** argv)
 {
-	PA_Init();    
-	PA_InitVBL();
+	//PA_Init();    
+	//PA_InitVBL();
 
 	/* Setup logging console on top screen */
 	init_console(1,0);
@@ -548,7 +556,7 @@ int main(int argc, char ** argv)
 	print_to_console("");
 
 	print_to_console("Initializing Wifi...");
-	PA_InitWifi();
+	//PA_InitWifi();
 
 	wardriving_loop();
 	
