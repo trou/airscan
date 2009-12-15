@@ -545,7 +545,20 @@ void wardriving_loop()
 
 int main(int argc, char ** argv)
 {
-	PrintConsole *defaultConsole;
+	PrintConsole topConsole, *botConsole;
+
+	botConsole = consoleDemoInit();
+
+	memcpy(&topConsole, consoleGetDefault(), sizeof(topConsole));
+	videoSetMode(MODE_0_2D);
+	vramSetBankA(VRAM_A_MAIN_BG); 
+
+	consoleInit(&topConsole, topConsole.bgLayer, BgType_Text4bpp, BgSize_T_256x256, topConsole.mapBase, topConsole.gfxBase, true, true);
+	consolePrintChar('c');
+	consoleSelect(botConsole);
+
+	printf("test");
+	return 0;
 	/* Setup logging console on top screen */
 	init_console(1,0);
 
@@ -565,14 +578,6 @@ int main(int argc, char ** argv)
 	print_to_console("Initializing Wifi...");
 	Wifi_InitDefault(INIT_ONLY);
 	
-	defaultConsole = consoleGetDefault();
-	videoSetMode(MODE_0_2D);
-	vramSetBankC(VRAM_C_MAIN_BG); 
-
-	consoleInit(NULL, defaultConsole->bgLayer, BgType_Text4bpp, BgSize_T_256x256, defaultConsole->mapBase, defaultConsole->gfxBase, true, true);
-
-	printf("test");
-	return 0;
 
 	wardriving_loop();
 	
