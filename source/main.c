@@ -63,6 +63,9 @@ enum display_states {
 	STATE_CONNECTED,
 	STATE_ERROR
 };
+
+
+
 void clear_main()
 {
 	consoleSelect(mainConsole);
@@ -98,10 +101,10 @@ void print_to_console(char *str)
 
 void print_xy(int x, int y, char *str)
 {
-	static char buffer[128];
+	static char buffer[MAX_X_TEXT+9];
 
 	consoleSelect(mainConsole);
-	snprintf(buffer, 127, "\x1b[%d;%dH%s", x, y, str);
+	snprintf(buffer, MAX_X_TEXT+8, "\x1b[%d;%dH%s", y, x, str);
 	iprintf(buffer);
 }
 
@@ -111,6 +114,13 @@ void abort_msg(char *msg)
 	print_to_console(msg);
 	while(1) swiWaitForVBlank();
 }
+
+
+u32 tick()
+{
+	return ((TIMER1_DATA*(1<<16))+TIMER0_DATA)/33;
+}
+
 
 struct AP_HT_Entry {
 	struct AP_HT_Entry 	*next;
@@ -378,7 +388,6 @@ void wardriving_loop()
 	int num_aps, i, index, flags, pressed;
 	touchPosition touchXY;
 	Wifi_AccessPoint cur_ap;
-	char timer_id;
 	u32 lasttick;
 	char state, display_state;
 	/* Vars for AP_DISPLAY */
@@ -405,15 +414,16 @@ void wardriving_loop()
 
 	index = 0;
 
-	//StartTime(true);
-	//timer_id = NewTimer(true);
-	//lasttick = Tick(timer_id);
+	
+        TIMER0_CR = TIMER_ENABLE|TIMER_DIV_1024;
+        TIMER1_CR = TIMER_ENABLE|TIMER_CASCADE;
+	lasttick = tick();
 	
 	while (1)
 	{
 		switch (state) {
 			case STATE_SCANNING:
-		//curtick = Tick(timer_id);
+		curtick = tick();
 		scanKeys();
 		pressed = keysDown();
 
@@ -444,7 +454,7 @@ void wardriving_loop()
 
 		/* Check timeouts every second */
 		if (timeout && (curtick-lasttick > 1000)) {
-			//lasttick = Tick(timer_id);
+			lasttick = tick();
 			clean_timeouts(lasttick);
 		}
 
@@ -522,6 +532,9 @@ void wardriving_loop()
 
 int main(int argc, char ** argv)
 {
+
+	irqInit();
+	irqEnable(IRQ_VBLANK);
 
 	/* Setup logging console on top screen */
 	init_consoles();
