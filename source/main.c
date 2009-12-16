@@ -424,6 +424,9 @@ void wardriving_loop()
 		switch (state) {
 			case STATE_SCANNING:
 		curtick = tick();
+
+		/* Wait for VBL just before key handling and redraw */
+		swiWaitForVBlank();
 		scanKeys();
 		pressed = keysDown();
 
@@ -458,8 +461,6 @@ void wardriving_loop()
 			clean_timeouts(lasttick);
 		}
 
-		/* Wait for VBL just before key handling and redraw */
-		swiWaitForVBlank();
 		if (pressed & KEY_RIGHT)
 			timeout += 1000;
 		if (pressed & KEY_LEFT && timeout > 0)
