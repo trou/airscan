@@ -37,9 +37,7 @@
 #define MAX_Y_TEXT 24			/* Number of vertical tiles */
 #define MAX_X_TEXT 33			/* Number of horiz tiles */
 
-char console[MAX_Y_TEXT][MAX_X_TEXT];	/* Current console text */
-int console_last = 0; 			/* index to the last added entry */
-int console_screen = 0, console_bg = 0;
+PrintConsole *debugConsole, *mainConsole;
 int timeout = 0;
 u32 curtick; 				/* Current tick to handle timeout */
 char modes[12];				/* display modes (OPN/WEP/WPA) */
@@ -65,63 +63,45 @@ enum display_states {
 	STATE_CONNECTED,
 	STATE_ERROR
 };
-
-/* Setup an auto scrolling text screen
- * @screen = screen id
- * @bgnum = background number
- */
-void init_console(int screen, int bgnum)
+void clear_main()
 {
-	int i;
+	consoleSelect(mainConsole);
+	consoleClear();
+}
+void init_consoles(void)
+{
+	// debug console on top
+	mainConsole = consoleDemoInit();
+	debugConsole = (PrintConsole *) malloc(sizeof(PrintConsole));
 
-	consoleDemoInit();
-	return ;
-	console_screen = screen;
-	console_bg = bgnum;
-	//PA_InitText(screen, bgnum);
-	//PA_SetTextCol(screen, 31, 31, 31);
+	memcpy(debugConsole, consoleGetDefault(), sizeof(PrintConsole));
+	videoSetMode(MODE_0_2D);
+	vramSetBankA(VRAM_A_MAIN_BG); 
 
-	for (i = 0; i < MAX_Y_TEXT; i++)
-		console[i][MAX_X_TEXT-1] = 0;
+	consoleInit(debugConsole, debugConsole->bgLayer, BgType_Text4bpp, BgSize_T_256x256, debugConsole->mapBase, debugConsole->gfxBase, true, true);
+#ifdef DEBUG
+	printf("Test debug console");
+#endif
+	consoleSelect(mainConsole);
+#ifdef DEBUG
+	printf("Test main console");
+#endif
+	return;
 }
 
 /* add a line to scrolling display wrapping lines if necessary */
 void print_to_console(char *str)
 {
+	consoleSelect(debugConsole);
 	printf("%s\n", str);
-	return; 
-	int i, pos, len;
-
-	len = strlen(str);
-	while (len > 0) {	
-		console_last = (console_last+1)%MAX_Y_TEXT;
-
-		if (len > MAX_X_TEXT-1) {
-			memcpy(console[console_last], str, MAX_X_TEXT-1);
-			str += MAX_X_TEXT-1;
-		} else {
-			/* reset line to avoid garbage */
-			memset(console[console_last], ' ', MAX_X_TEXT-1);
-			memcpy(console[console_last], str, len);
-		}
-		len -= 32;
-	}
-
-	i = console_last;
-	pos = MAX_Y_TEXT;
-	do {
-		pos--;
-		//PA_OutputText(console_screen, console_bg, pos, console[i]);
-		if (--i < 0) i = MAX_Y_TEXT-1;
-	} while (pos);
-
-	return;
 }
 
-void print_xy(char *str, int x, int y)
+void print_xy(int x, int y, char *str)
 {
-	char buffer[128];
-	sprintf(buffer, "\x1b[%d;%dH%s", x, y, str);
+	static char buffer[128];
+
+	consoleSelect(mainConsole);
+	snprintf(buffer, 127, "\x1b[%d;%dH%s", x, y, str);
 	iprintf(buffer);
 }
 
@@ -284,14 +264,14 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 		cur_entries[line] = entry;
 
 	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
-	//PA_OutputSimpleText(0, 0, line*3, info);
+	print_xy(0, line*3, info);
 	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %ds",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
 		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
 		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
 		(curtick-entry->tick)/1000);
-	//PA_OutputSimpleText(0, 0, line*3+1, info);
-	//PA_OutputSimpleText(0, 0, line*3+2, SCREEN_SEP);
+	print_xy(0, line*3+1, info);
+	print_xy(0, line*3+2, SCREEN_SEP);
 }
 
 void display_list(int index, int flags)
@@ -303,13 +283,13 @@ void display_list(int index, int flags)
 	/* header */
 	displayed = 1;
 
-	//PA_ClearTextBg(0);
+	clear_main();
 
 	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
-	//PA_OutputSimpleText(0,0,0, info);
+	print_xy(0, 0, info);
 	snprintf(info, MAX_X_TEXT, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], num[WEP], num[WPA], index);
-	//PA_OutputSimpleText(0,0,1, info);
-	//PA_OutputSimpleText(0,0,2, SCREEN_SEP);
+	print_xy(0, 1, info);
+	print_xy(0, 2, SCREEN_SEP);
 
 	memset(cur_entries, 0, sizeof(cur_entries));
 
@@ -423,8 +403,6 @@ void wardriving_loop()
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
 	strcpy(modes, "OPN+WEP+WPA");
 
-	/* Init display screen */
-	//PA_InitText(0,0);
 	index = 0;
 
 	//StartTime(true);
@@ -471,7 +449,6 @@ void wardriving_loop()
 		}
 
 		/* Wait for VBL just before key handling and redraw */
-		//PA_WaitForVBL();
 		swiWaitForVBlank();
 		if (pressed & KEY_RIGHT)
 			timeout += 1000;
@@ -545,22 +522,9 @@ void wardriving_loop()
 
 int main(int argc, char ** argv)
 {
-	PrintConsole topConsole, *botConsole;
 
-	botConsole = consoleDemoInit();
-
-	memcpy(&topConsole, consoleGetDefault(), sizeof(topConsole));
-	videoSetMode(MODE_0_2D);
-	vramSetBankA(VRAM_A_MAIN_BG); 
-
-	consoleInit(&topConsole, topConsole.bgLayer, BgType_Text4bpp, BgSize_T_256x256, topConsole.mapBase, topConsole.gfxBase, true, true);
-	consolePrintChar('c');
-	consoleSelect(botConsole);
-
-	printf("test");
-	return 0;
 	/* Setup logging console on top screen */
-	init_console(1,0);
+	init_consoles();
 
 	print_to_console("AirScan v0.2 by Raphael Rigo");
 	print_to_console("inspired by wifi_lib_test v0.3a by Stephen Stair");
