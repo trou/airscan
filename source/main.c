@@ -470,7 +470,7 @@ void wardriving_loop()
 			index++;
 		if (pressed & KEY_UP && index > 0)
 			index--;
-		if (pressed & KEY_R && index+(DISPLAY_LINES-1) <= num_aps)
+		if (pressed & KEY_R && (index+(DISPLAY_LINES-1)) <= numap)
 			index += DISPLAY_LINES-1;
 		if (pressed & KEY_L && index >= DISPLAY_LINES-1)
 			index -= DISPLAY_LINES-1;
