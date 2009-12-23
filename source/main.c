@@ -275,7 +275,7 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 
 	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
 	print_xy(0, line*3, info);
-	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3d%% %ds",
+	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
 		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
 		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
@@ -534,7 +534,7 @@ void wardriving_loop()
 int main(int argc, char ** argv)
 {
 
-	irqInit();
+	//irqInit();
 	irqEnable(IRQ_VBLANK);
 
 	/* Setup logging console on top screen */
@@ -554,8 +554,7 @@ int main(int argc, char ** argv)
 	print_to_console("");
 
 	print_to_console("Initializing Wifi...");
-	Wifi_InitDefault(INIT_ONLY);
-	
+	Wifi_InitDefault(false);
 
 	wardriving_loop();
 	
