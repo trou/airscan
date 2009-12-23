@@ -83,11 +83,11 @@ void init_consoles(void)
 
 	consoleInit(debugConsole, debugConsole->bgLayer, BgType_Text4bpp, BgSize_T_256x256, debugConsole->mapBase, debugConsole->gfxBase, true, true);
 #ifdef DEBUG
-	printf("Test debug console");
+	printf("Test debug console\n");
 #endif
 	consoleSelect(mainConsole);
 #ifdef DEBUG
-	printf("Test main console");
+	printf("Test main console\n");
 #endif
 	return;
 }
@@ -462,9 +462,9 @@ void wardriving_loop()
 		}
 
 		if (pressed & KEY_RIGHT)
-			timeout += 1000;
+			timeout += 5000;
 		if (pressed & KEY_LEFT && timeout > 0)
-			timeout -= 1000;
+			timeout -= 5000;
 		
 		if (pressed & KEY_DOWN)
 			index++;
