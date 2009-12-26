@@ -23,6 +23,7 @@
 
 
 #include <stdio.h>
+#include <netinet/in.h>
 #include <nds.h>
 #include <dswifi9.h>
 
@@ -149,6 +150,50 @@ int first_null[3];
 
 /* Currently displayed APs */
 struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
+
+int connect_ap(Wifi_AccessPoint *ap)
+{
+	int ret;
+	int status = ASSOCSTATUS_DISCONNECTED;
+
+	Wifi_DisconnectAP();
+	/* Ask for DHCP */
+	Wifi_SetIP(0,0,0,0,0);	
+	ret = Wifi_ConnectAP(ap,
+			WEPMODE_NONE, 0,
+			NULL);
+	if(ret)
+		print_to_console("error connecting");
+		
+	while(status != ASSOCSTATUS_ASSOCIATED && 
+		status != ASSOCSTATUS_CANNOTCONNECT)
+	{
+		int oldStatus = status;
+
+		status = Wifi_AssocStatus();
+		if (oldStatus != status)
+			print_to_console(ASSOCSTATUS_STRINGS[status]);
+		else
+			iprintf(".");
+
+		scanKeys();
+		if(keysDown() & KEY_B) break;
+		swiWaitForVBlank();
+	}
+	if (status == ASSOCSTATUS_ASSOCIATED) {
+		struct in_addr ip, gw, sn, dns1, dns2;
+		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
+
+		print_to_console("Associated !");
+		print_to_console(inet_ntoa(ip));
+		print_to_console(inet_ntoa(sn));
+		print_to_console(inet_ntoa(gw));
+		print_to_console(inet_ntoa(dns1));
+		print_to_console(inet_ntoa(dns2));
+	}
+
+	return status;
+}
 
 void do_realloc(int type)
 {
@@ -399,6 +444,7 @@ void wardriving_loop()
 
 
 	state = STATE_SCANNING;
+	display_state = STATE_CONNECTING;
 
 	for (i = 0; i < 3; i++) {
 		sizes[i] = DEFAULT_ALLOC_SIZE;
@@ -441,10 +487,12 @@ void wardriving_loop()
 #ifdef DEBUG
 			sprintf(debug_str, "Entry : Y : %d", entry_n);
 			print_to_console(debug_str);
+			print_to_console(entry->ap->ssid);
 #endif
 			if (entry) {
-				print_to_console(entry->ap->ssid);
 				state = STATE_AP_DISPLAY;
+				display_state = STATE_CONNECTING; 
+				break;
 			}
 		}
 
@@ -510,21 +558,29 @@ void wardriving_loop()
 			 * 3) try default IPs
 			 * 4) handle WEP ?
 			 */
-			print_to_console("kikoo");
 			/* Try to connect */
 			if (!(entry->ap->flags&WFLAG_APDATA_WPA) &&
-				!(entry->ap->flags&WFLAG_APDATA_WEP)
-				&& display_state == STATE_PACKET) {
-					int ret;
-					Wifi_DisconnectAP();
-					ret = Wifi_ConnectAP(entry->ap,
-							WEPMODE_NONE, 0,
-							NULL);
-					if(ret)
-						print_to_console("error connecting");
+				!(entry->ap->flags&WFLAG_APDATA_WEP) &&
+				display_state == STATE_CONNECTING) {
+				print_to_console("Trying to connect to :");
+				print_to_console(entry->ap->ssid);
+				print_to_console("Press B to cancel");
+				switch(connect_ap(entry->ap)) {
+					case ASSOCSTATUS_ASSOCIATED:
+						display_state = STATE_CONNECTED;
+						break;
+							
+					default:
+						print_to_console("Connection failed");
+						state = STATE_SCANNING;
+				}
 			}
-			state = STATE_SCANNING;
-			display_state = STATE_PACKET;
+			scanKeys();
+			if(keysDown() & KEY_B) {
+				print_to_console("Back to scan mode");
+				state = STATE_SCANNING;
+			}
+			swiWaitForVBlank();
 			break;
 		}
 	}
