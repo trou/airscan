@@ -193,7 +193,6 @@ int connect_ap(Wifi_AccessPoint *ap)
 
 	clear_main();
 
-	Wifi_DisconnectAP();
 	/* Ask for DHCP */
 	Wifi_SetIP(0,0,0,0,0);	
 	ret = Wifi_ConnectAP(ap,
