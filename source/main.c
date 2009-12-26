@@ -637,7 +637,7 @@ int main(int argc, char ** argv)
 	/* Setup logging console on top screen */
 	init_consoles();
 
-	print_to_debug("AirScan v0.2 by Raphael Rigo");
+	print_to_debug("AirScan v0.3 by Raphael Rigo");
 	print_to_debug("inspired by wifi_lib_test v0.3a by Stephen Stair");
 	print_to_debug("");
 	print_to_debug("B: Toggle OPN");
@@ -647,7 +647,7 @@ int main(int argc, char ** argv)
 	print_to_debug("Y: Toggle debug");
 #endif
 	print_to_debug("Up/Down : scroll");
-	print_to_debug("Left/Right : Timeout -/+ (NOT WORKING)");
+	print_to_debug("Left/Right : Timeout -/+ (buggy)");
 	print_to_debug("");
 
 	print_to_debug("Initializing Wifi...");
