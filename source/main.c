@@ -83,7 +83,9 @@ void init_consoles(void)
 	videoSetMode(MODE_0_2D);
 	vramSetBankA(VRAM_A_MAIN_BG); 
 
-	consoleInit(debugConsole, debugConsole->bgLayer, BgType_Text4bpp, BgSize_T_256x256, debugConsole->mapBase, debugConsole->gfxBase, true, true);
+	consoleInit(debugConsole, debugConsole->bgLayer, BgType_Text4bpp,
+			BgSize_T_256x256, debugConsole->mapBase, 
+			debugConsole->gfxBase, true, true);
 #ifdef DEBUG
 	printf("Test debug console\n");
 #endif
@@ -195,11 +197,11 @@ int connect_ap(Wifi_AccessPoint *ap)
 
 	/* Ask for DHCP */
 	Wifi_SetIP(0,0,0,0,0);	
-	ret = Wifi_ConnectAP(ap,
-			WEPMODE_NONE, 0,
-			NULL);
-	if(ret)
+	ret = Wifi_ConnectAP(ap, WEPMODE_NONE, 0, NULL);
+	if(ret) {
 		print_to_debug("error connecting");
+		return ASSOCSTATUS_CANNOTCONNECT;
+	}
 		
 	while(status != ASSOCSTATUS_ASSOCIATED && 
 		status != ASSOCSTATUS_CANNOTCONNECT)
@@ -248,7 +250,7 @@ void do_realloc(int type)
 	/* realloc needed */
 	if (num[type] >= sizes[type]) {
 		sizes[type] += DEFAULT_ALLOC_SIZE;
-		ap[type] = (struct AP_HT_Entry **)realloc(ap[type], sizes[type]);
+		ap[type] = (struct AP_HT_Entry **)realloc(ap[type],sizes[type]);
 		if (!ap[type]) abort_msg("Alloc failed !");
 #ifdef DEBUG
 		if(debug) print_to_debug("realloc'd");
@@ -317,7 +319,8 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 
 bool inline macaddr_cmp(void *mac1, void *mac2)
 {
-	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && (((u16 *)mac1)[2]==((u16 *)mac2)[2]);
+	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && 
+		(((u16 *)mac1)[2]==((u16 *)mac2)[2]);
 }
 
 /* Insert or update ap data in the hash table
@@ -335,7 +338,7 @@ char insert_ap(Wifi_AccessPoint *ap)
 		ap_ht[key] = entry_from_ap(ap);
 	} else {
 		ht_entry = ap_ht[key];
-		/* Check if the AP is already present, walking the linked list */
+		/* Check if the AP is already known, walking the linked list */
 		while (!(same = macaddr_cmp(ap->macaddr,ht_entry->ap->macaddr))
 			&& ht_entry->next)
 			ht_entry = ht_entry->next;
@@ -367,10 +370,10 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 
 	printf_xy(0, line*3, "%s", entry->ap->ssid);
 	printf_xy(0, line*3+1, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
-		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
-		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
-		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
-		(curtick-entry->tick)/1000);
+	  entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
+	  entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
+	  mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
+	  (curtick-entry->tick)/1000);
 	print_xy(0, line*3+2, SCREEN_SEP);
 }
 
@@ -385,7 +388,8 @@ void display_list(int index, int flags)
 	clear_main();
 
 	printf_xy(0, 0, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
-	printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], num[WEP], num[WPA], index);
+	printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], 
+			num[WEP], num[WPA], index);
 	print_xy(0, 2, SCREEN_SEP);
 
 	memset(cur_entries, 0, sizeof(cur_entries));
@@ -393,7 +397,8 @@ void display_list(int index, int flags)
 	if (flags&DISP_OPN) {
 		i = (first_null[OPN] >= 0 && index > first_null[OPN] ?
 			first_null[OPN] : index);
-		for (; i < (num[OPN]+num_null[OPN]) && displayed < DISPLAY_LINES; i++) {
+		for (;i<(num[OPN]+num_null[OPN]) && displayed < DISPLAY_LINES;
+			i++) {
 			if (ap[OPN][i])
 				display_entry(displayed++, ap[OPN][i], "OPN");
 		}
@@ -403,7 +408,8 @@ void display_list(int index, int flags)
 	if (flags&DISP_WEP) {
 		i = (first_null[WEP] >= 0 && index > first_null[WEP] ?
 			first_null[WEP] : index);
-		for (; i < (num[WEP]+num_null[WEP]) && displayed < DISPLAY_LINES; i++) {
+		for (; i<(num[WEP]+num_null[WEP]) && displayed < DISPLAY_LINES; 
+			i++) {
 			if (ap[WEP][i])
 				display_entry(displayed++, ap[WEP][i], "WEP");
 		}
@@ -413,7 +419,8 @@ void display_list(int index, int flags)
 	if (flags&DISP_WPA) {
 		i = (first_null[WPA] >= 0 && index > first_null[WPA] ?
 			first_null[WPA] : index);
-		for (; i < (num[WPA]+num_null[WPA]) && displayed < DISPLAY_LINES; i++) {
+		for (; i<(num[WPA]+num_null[WPA]) && displayed < DISPLAY_LINES; 
+			i++) {
 			if (ap[WPA][i])
 				display_entry(displayed++, ap[WPA][i], "WPA");
 		}
@@ -453,7 +460,7 @@ void clean_timeouts()
 				idx = cur->array_idx;
 
 				ap[type][idx] = NULL;
-				if (num_null[type] == 0 || idx < first_null[type])
+				if (!num_null[type] || idx < first_null[type])
 					first_null[type] = idx;
 				num_null[type]++;
 				num[type]--;
@@ -489,7 +496,8 @@ void wardriving_loop()
 		sizes[i] = DEFAULT_ALLOC_SIZE;
 		num[i] = num_null[i] = 0;
 		first_null[i] = -1;
-		ap[i] = (struct AP_HT_Entry **) malloc(sizes[i]*sizeof(struct AP_HT_Entry *));
+		ap[i] = (struct AP_HT_Entry **) 
+			malloc(sizes[i]*sizeof(struct AP_HT_Entry *));
 		if (ap[i] == NULL) abort_msg("alloc failed");
 	}
 	num_aps = 0;
@@ -609,7 +617,7 @@ void wardriving_loop()
 						break;
 							
 					default:
-						print_to_debug("Connection failed");
+						print_to_debug("Cnx failed");
 						state = STATE_SCANNING;
 						Wifi_ScanMode();
 				}
