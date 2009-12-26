@@ -28,7 +28,7 @@
 #include <nds.h>
 #include <dswifi9.h>
 
-#define DEBUG
+//#define DEBUG
 
 #define SCREEN_SEP "--------------------------------"
 
@@ -237,11 +237,11 @@ void display_ap(Wifi_AccessPoint *ap)
 	if (status == ASSOCSTATUS_ASSOCIATED) {
 		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
 
-		printf_xy(0, 3, "IP :\t\t%s", inet_ntoa(ip));
-		printf_xy(0, 4, "Subnet :\t%s", inet_ntoa(sn));
-		printf_xy(0, 5, "GW :\t\t%s", inet_ntoa(gw));
-		printf_xy(0, 6, "DNS1 :\t%s", inet_ntoa(dns1));
-		printf_xy(0, 7, "DNS2 :\t%s", inet_ntoa(dns2));
+		printf_xy(0, 3, "IP :     %s", inet_ntoa(ip));
+		printf_xy(0, 4, "Subnet : %s", inet_ntoa(sn));
+		printf_xy(0, 5, "GW :     %s", inet_ntoa(gw));
+		printf_xy(0, 6, "DNS1 :   %s", inet_ntoa(dns1));
+		printf_xy(0, 7, "DNS2 :   %s", inet_ntoa(dns2));
 	}
 }
 
