@@ -23,6 +23,7 @@
 
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <netinet/in.h>
 #include <nds.h>
 #include <dswifi9.h>
@@ -44,7 +45,6 @@ u32 curtick; 				/* Current tick to handle timeout */
 char modes[12];				/* display modes (OPN/WEP/WPA) */
 #ifdef DEBUG
 	char debug = 1;
-	char debug_str[255];
 #endif
 
 enum array_indexes {
@@ -100,6 +100,16 @@ void print_to_console(char *str)
 	printf("%s\n", str);
 }
 
+void printf_to_console(char *format, ...)
+{
+	va_list args;
+
+	consoleSelect(debugConsole);
+	va_start(args, format);
+	vprintf(format, args);
+	va_end(args);
+}
+
 void print_xy(int x, int y, char *str)
 {
 	static char buffer[MAX_X_TEXT+9];
@@ -107,6 +117,21 @@ void print_xy(int x, int y, char *str)
 	consoleSelect(mainConsole);
 	snprintf(buffer, MAX_X_TEXT+8, "\x1b[%d;%dH%s", y, x, str);
 	iprintf(buffer);
+}
+
+void printf_xy(int x, int y, char *format, ...)
+{
+	static char buffer[MAX_X_TEXT+1];
+	static char buffer2[MAX_X_TEXT+9];
+	va_list args;
+
+	consoleSelect(mainConsole);
+	va_start(args, format);
+
+	vsnprintf(buffer, MAX_X_TEXT+1, format, args);
+	snprintf(buffer2, MAX_X_TEXT+8, "\x1b[%d;%dH%s", y, x, buffer);
+	iprintf(buffer2);
+	va_end(args);
 }
 
 void abort_msg(char *msg)
@@ -174,7 +199,7 @@ int connect_ap(Wifi_AccessPoint *ap)
 		if (oldStatus != status)
 			print_to_console(ASSOCSTATUS_STRINGS[status]);
 		else
-			iprintf(".");
+			printf_to_console(".");
 
 		scanKeys();
 		if(keysDown() & KEY_B) break;
@@ -193,6 +218,11 @@ int connect_ap(Wifi_AccessPoint *ap)
 	}
 
 	return status;
+}
+
+void display_ap(Wifi_AccessPoint *ap)
+{
+	clear_main();
 }
 
 void do_realloc(int type)
@@ -313,19 +343,16 @@ char insert_ap(Wifi_AccessPoint *ap)
 /* Print "entry" on line "line" */
 void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 {
-	char info[MAX_X_TEXT];
 
 	if (line < DISPLAY_LINES)
 		cur_entries[line] = entry;
 
-	snprintf(info, MAX_X_TEXT, "%s", entry->ap->ssid);
-	print_xy(0, line*3, info);
-	snprintf(info, MAX_X_TEXT, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
+	printf_xy(0, line*3, "%s", entry->ap->ssid);
+	printf_xy(0, line*3+1, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
 		entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
 		entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
 		mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
 		(curtick-entry->tick)/1000);
-	print_xy(0, line*3+1, info);
 	print_xy(0, line*3+2, SCREEN_SEP);
 }
 
@@ -333,17 +360,14 @@ void display_list(int index, int flags)
 {
 	int i;
 	int displayed;		/* Number of items already displayed */
-	char info[MAX_X_TEXT];
 
 	/* header */
 	displayed = 1;
 
 	clear_main();
 
-	snprintf(info, MAX_X_TEXT, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
-	print_xy(0, 0, info);
-	snprintf(info, MAX_X_TEXT, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], num[WEP], num[WPA], index);
-	print_xy(0, 1, info);
+	printf_xy(0, 0, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
+	printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], num[WEP], num[WPA], index);
 	print_xy(0, 2, SCREEN_SEP);
 
 	memset(cur_entries, 0, sizeof(cur_entries));
@@ -385,7 +409,6 @@ void display_list(int index, int flags)
 void clean_timeouts()
 {
 	struct AP_HT_Entry *cur, *prev;
-	char msg[MAX_X_TEXT];
 	int i, type, idx;
 
 
@@ -395,8 +418,7 @@ void clean_timeouts()
 		prev = NULL;
 		while(cur) {
 			if (curtick-(cur->tick) > timeout) {
-				snprintf(msg, MAX_X_TEXT, "Timeout : %s", cur->ap->ssid);
-				print_to_console(msg);
+				printf_to_console("Timeout : %s", cur->ap->ssid);
 				if (prev)
 					prev->next = cur->next;
 				else
@@ -440,8 +462,6 @@ void wardriving_loop()
 	struct AP_HT_Entry *entry = NULL;
 
 	print_to_console("Setting scan mode...");
-	Wifi_ScanMode();
-
 
 	state = STATE_SCANNING;
 	display_state = STATE_CONNECTING;
@@ -485,9 +505,8 @@ void wardriving_loop()
 			entry_n = touchXY.py/8/3;
 			entry = cur_entries[entry_n];
 #ifdef DEBUG
-			sprintf(debug_str, "Entry : Y : %d", entry_n);
-			print_to_console(debug_str);
-			print_to_console(entry->ap->ssid);
+			printf_to_console("Entry : Y : %d\n", entry_n);
+			printf_to_console("SSID : %s\n", entry->ap->ssid);
 #endif
 			if (entry) {
 				state = STATE_AP_DISPLAY;
@@ -573,6 +592,7 @@ void wardriving_loop()
 					default:
 						print_to_console("Connection failed");
 						state = STATE_SCANNING;
+						Wifi_ScanMode();
 				}
 			}
 			scanKeys();
