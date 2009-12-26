@@ -150,6 +150,39 @@ int first_null[3];
 /* Currently displayed APs */
 struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
 
+int connect_ap(Wifi_AccessPoint *ap)
+{
+	int ret;
+	int status = ASSOCSTATUS_DISCONNECTED;
+
+	Wifi_DisconnectAP();
+	/* Ask for DHCP */
+	Wifi_SetIP(0,0,0,0,0);	
+	ret = Wifi_ConnectAP(ap,
+			WEPMODE_NONE, 0,
+			NULL);
+	if(ret)
+		print_to_console("error connecting");
+		
+	while(status != ASSOCSTATUS_ASSOCIATED && 
+		status != ASSOCSTATUS_CANNOTCONNECT)
+	{
+		int oldStatus = status;
+
+		status = Wifi_AssocStatus();
+		if (oldStatus != status)
+			print_to_console(ASSOCSTATUS_STRINGS[status]);
+		else
+			iprintf(".");
+
+		scanKeys();
+		if(keysDown() & KEY_B) break;
+		swiWaitForVBlank();
+	}
+
+	return status;
+}
+
 void do_realloc(int type)
 {
 	/* realloc needed */
@@ -445,7 +478,10 @@ void wardriving_loop()
 			if (entry) {
 				print_to_console(entry->ap->ssid);
 				state = STATE_AP_DISPLAY;
+				display_state = STATE_CONNECTING; 
+				break;
 			}
+			print_to_console("kikoo");
 		}
 
 		num_aps = Wifi_GetNumAP();
@@ -510,21 +546,23 @@ void wardriving_loop()
 			 * 3) try default IPs
 			 * 4) handle WEP ?
 			 */
-			print_to_console("kikoo");
+			print_to_console("Trying to connect to :");
+			print_to_console(entry->ap->ssid);
+			print_to_console("Press B to cancel");
 			/* Try to connect */
 			if (!(entry->ap->flags&WFLAG_APDATA_WPA) &&
-				!(entry->ap->flags&WFLAG_APDATA_WEP)
-				&& display_state == STATE_PACKET) {
-					int ret;
-					Wifi_DisconnectAP();
-					ret = Wifi_ConnectAP(entry->ap,
-							WEPMODE_NONE, 0,
-							NULL);
-					if(ret)
-						print_to_console("error connecting");
+				!(entry->ap->flags&WFLAG_APDATA_WEP) &&
+				display_state == STATE_CONNECTING) {
+				switch(connect_ap(entry->ap)) {
+					case ASSOCSTATUS_CONNECTED:
+						display_state = STATE_CONNECTED;
+						break;
+							
+					default:
+						print_to_console("Connection failed");
+						state = STATE_SCANNING;
+				}
 			}
-			state = STATE_SCANNING;
-			display_state = STATE_PACKET;
 			break;
 		}
 	}
