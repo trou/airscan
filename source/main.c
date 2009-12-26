@@ -72,6 +72,7 @@ void clear_main()
 	consoleSelect(mainConsole);
 	consoleClear();
 }
+
 void init_consoles(void)
 {
 	// debug console on top
@@ -93,39 +94,48 @@ void init_consoles(void)
 	return;
 }
 
+#define print_to_debug(x) print_to(debugConsole, (x))
+#define print_to_main(x) print_to(mainConsole, (x))
+#define printf_to_debug(...) printf_to(debugConsole, __VA_ARGS__)
+#define printf_to_main(...) printf_to(mainConsole, __VA_ARGS__)
+#define print_xy_to_debug(...) print_xy_to(debugConsole, __VA_ARGS__)
+#define print_xy(...) print_xy_to(mainConsole, __VA_ARGS__)
+#define printf_xy_to_debug(...) printf_xy_to(debugConsole, __VA_ARGS__)
+#define printf_xy(...) printf_xy_to(mainConsole, __VA_ARGS__)
+
 /* add a line to scrolling display wrapping lines if necessary */
-void print_to_console(char *str)
+void print_to(PrintConsole *c, char *str)
 {
-	consoleSelect(debugConsole);
+	consoleSelect(c);
 	printf("%s\n", str);
 }
 
-void printf_to_console(char *format, ...)
+void printf_to(PrintConsole *c, char *format, ...)
 {
 	va_list args;
 
-	consoleSelect(debugConsole);
+	consoleSelect(c);
 	va_start(args, format);
 	vprintf(format, args);
 	va_end(args);
 }
 
-void print_xy(int x, int y, char *str)
+void print_xy_to(PrintConsole *c, int x, int y, char *str)
 {
 	static char buffer[MAX_X_TEXT+9];
 
-	consoleSelect(mainConsole);
+	consoleSelect(c);
 	snprintf(buffer, MAX_X_TEXT+8, "\x1b[%d;%dH%s", y, x, str);
 	iprintf(buffer);
 }
 
-void printf_xy(int x, int y, char *format, ...)
+void printf_xy_to(PrintConsole *c, int x, int y, char *format, ...)
 {
 	static char buffer[MAX_X_TEXT+1];
 	static char buffer2[MAX_X_TEXT+9];
 	va_list args;
 
-	consoleSelect(mainConsole);
+	consoleSelect(c);
 	va_start(args, format);
 
 	vsnprintf(buffer, MAX_X_TEXT+1, format, args);
@@ -136,8 +146,8 @@ void printf_xy(int x, int y, char *format, ...)
 
 void abort_msg(char *msg)
 {
-	print_to_console("Fatal error :");
-	print_to_console(msg);
+	print_to_debug("Fatal error :");
+	print_to_debug(msg);
 	while(1) swiWaitForVBlank();
 }
 
@@ -181,6 +191,8 @@ int connect_ap(Wifi_AccessPoint *ap)
 	int ret;
 	int status = ASSOCSTATUS_DISCONNECTED;
 
+	clear_main();
+
 	Wifi_DisconnectAP();
 	/* Ask for DHCP */
 	Wifi_SetIP(0,0,0,0,0);	
@@ -188,7 +200,7 @@ int connect_ap(Wifi_AccessPoint *ap)
 			WEPMODE_NONE, 0,
 			NULL);
 	if(ret)
-		print_to_console("error connecting");
+		print_to_debug("error connecting");
 		
 	while(status != ASSOCSTATUS_ASSOCIATED && 
 		status != ASSOCSTATUS_CANNOTCONNECT)
@@ -197,24 +209,13 @@ int connect_ap(Wifi_AccessPoint *ap)
 
 		status = Wifi_AssocStatus();
 		if (oldStatus != status)
-			print_to_console(ASSOCSTATUS_STRINGS[status]);
+			print_to_main((char *)ASSOCSTATUS_STRINGS[status]);
 		else
-			printf_to_console(".");
+			printf_to_main(".");
 
 		scanKeys();
 		if(keysDown() & KEY_B) break;
 		swiWaitForVBlank();
-	}
-	if (status == ASSOCSTATUS_ASSOCIATED) {
-		struct in_addr ip, gw, sn, dns1, dns2;
-		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
-
-		print_to_console("Associated !");
-		print_to_console(inet_ntoa(ip));
-		print_to_console(inet_ntoa(sn));
-		print_to_console(inet_ntoa(gw));
-		print_to_console(inet_ntoa(dns1));
-		print_to_console(inet_ntoa(dns2));
 	}
 
 	return status;
@@ -222,7 +223,25 @@ int connect_ap(Wifi_AccessPoint *ap)
 
 void display_ap(Wifi_AccessPoint *ap)
 {
+	static struct in_addr ip, gw, sn, dns1, dns2;
+	int status;
+
 	clear_main();
+
+	status = Wifi_AssocStatus();
+
+	print_xy(0, 0, "SSID :");
+	print_xy(0, 1, ap->ssid);
+	printf_xy(0, 2, "State : %s", ASSOCSTATUS_STRINGS[status]);
+	if (status == ASSOCSTATUS_ASSOCIATED) {
+		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
+
+		printf_xy(0, 3, "IP :\t\t%s", inet_ntoa(ip));
+		printf_xy(0, 4, "Subnet :\t%s", inet_ntoa(sn));
+		printf_xy(0, 5, "GW :\t\t%s", inet_ntoa(gw));
+		printf_xy(0, 6, "DNS1 :\t%s", inet_ntoa(dns1));
+		printf_xy(0, 7, "DNS2 :\t%s", inet_ntoa(dns2));
+	}
 }
 
 void do_realloc(int type)
@@ -233,7 +252,7 @@ void do_realloc(int type)
 		ap[type] = (struct AP_HT_Entry **)realloc(ap[type], sizes[type]);
 		if (!ap[type]) abort_msg("Alloc failed !");
 #ifdef DEBUG
-		if(debug) print_to_console("realloc'd");
+		if(debug) print_to_debug("realloc'd");
 #endif
 	}
 }
@@ -418,7 +437,7 @@ void clean_timeouts()
 		prev = NULL;
 		while(cur) {
 			if (curtick-(cur->tick) > timeout) {
-				printf_to_console("Timeout : %s", cur->ap->ssid);
+				printf_to_debug("Timeout : %s", cur->ap->ssid);
 				if (prev)
 					prev->next = cur->next;
 				else
@@ -461,8 +480,9 @@ void wardriving_loop()
 	int entry_n;
 	struct AP_HT_Entry *entry = NULL;
 
-	print_to_console("Setting scan mode...");
+	print_to_debug("Setting scan mode...");
 
+	Wifi_ScanMode();
 	state = STATE_SCANNING;
 	display_state = STATE_CONNECTING;
 
@@ -505,8 +525,8 @@ void wardriving_loop()
 			entry_n = touchXY.py/8/3;
 			entry = cur_entries[entry_n];
 #ifdef DEBUG
-			printf_to_console("Entry : Y : %d\n", entry_n);
-			printf_to_console("SSID : %s\n", entry->ap->ssid);
+			printf_to_debug("Entry : Y : %d\n", entry_n);
+			printf_to_debug("SSID : %s\n", entry->ap->ssid);
 #endif
 			if (entry) {
 				state = STATE_AP_DISPLAY;
@@ -562,9 +582,9 @@ void wardriving_loop()
 		if (pressed & KEY_Y) {
 			debug ^= 1;
 			if (debug)
-				print_to_console("Debug is now ON");
+				print_to_debug("Debug is now ON");
 			else
-				print_to_console("Debug is now OFF");
+				print_to_debug("Debug is now OFF");
 		}
 #endif
 		display_list(index, flags);
@@ -581,23 +601,24 @@ void wardriving_loop()
 			if (!(entry->ap->flags&WFLAG_APDATA_WPA) &&
 				!(entry->ap->flags&WFLAG_APDATA_WEP) &&
 				display_state == STATE_CONNECTING) {
-				print_to_console("Trying to connect to :");
-				print_to_console(entry->ap->ssid);
-				print_to_console("Press B to cancel");
+				print_to_debug("Trying to connect to :");
+				print_to_debug(entry->ap->ssid);
+				print_to_debug("Press B to cancel");
 				switch(connect_ap(entry->ap)) {
 					case ASSOCSTATUS_ASSOCIATED:
 						display_state = STATE_CONNECTED;
 						break;
 							
 					default:
-						print_to_console("Connection failed");
+						print_to_debug("Connection failed");
 						state = STATE_SCANNING;
 						Wifi_ScanMode();
 				}
 			}
+			display_ap(entry->ap);
 			scanKeys();
 			if(keysDown() & KEY_B) {
-				print_to_console("Back to scan mode");
+				print_to_debug("Back to scan mode");
 				state = STATE_SCANNING;
 			}
 			swiWaitForVBlank();
@@ -616,20 +637,20 @@ int main(int argc, char ** argv)
 	/* Setup logging console on top screen */
 	init_consoles();
 
-	print_to_console("AirScan v0.2 by Raphael Rigo");
-	print_to_console("inspired by wifi_lib_test v0.3a by Stephen Stair");
-	print_to_console("");
-	print_to_console("B: Toggle OPN");
-	print_to_console("A: Toggle WEP");
-	print_to_console("X: Toggle WPA");
+	print_to_debug("AirScan v0.2 by Raphael Rigo");
+	print_to_debug("inspired by wifi_lib_test v0.3a by Stephen Stair");
+	print_to_debug("");
+	print_to_debug("B: Toggle OPN");
+	print_to_debug("A: Toggle WEP");
+	print_to_debug("X: Toggle WPA");
 #ifdef DEBUG
-	print_to_console("Y: Toggle debug");
+	print_to_debug("Y: Toggle debug");
 #endif
-	print_to_console("Up/Down : scroll");
-	print_to_console("Left/Right : Timeout -/+ (NOT WORKING)");
-	print_to_console("");
+	print_to_debug("Up/Down : scroll");
+	print_to_debug("Left/Right : Timeout -/+ (NOT WORKING)");
+	print_to_debug("");
 
-	print_to_console("Initializing Wifi...");
+	print_to_debug("Initializing Wifi...");
 	Wifi_InitDefault(false);
 
 	wardriving_loop();
