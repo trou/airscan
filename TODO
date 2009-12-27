@@ -2,3 +2,4 @@
 	- try to connect (standard IP)
 	- packet sniffer
 - scan on specific channel
+- split code in separate files
