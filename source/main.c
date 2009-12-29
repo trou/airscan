@@ -443,7 +443,7 @@ void clean_timeouts()
 		prev = NULL;
 		while(cur) {
 			if (curtick-(cur->tick) > timeout) {
-				printf_to_debug("Timeout : %s", cur->ap->ssid);
+				printf_to_debug("Timeout : %s\n", cur->ap->ssid);
 				if (prev)
 					prev->next = cur->next;
 				else
