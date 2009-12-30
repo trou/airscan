@@ -80,7 +80,7 @@ void init_consoles(void)
 	debugConsole = (PrintConsole *) malloc(sizeof(PrintConsole));
 
 	if (!debugConsole)
-		abort_msg("malloc failed");
+		exit(1);
 
 	memcpy(debugConsole, consoleGetDefault(), sizeof(PrintConsole));
 	videoSetMode(MODE_0_2D);
