@@ -79,6 +79,9 @@ void init_consoles(void)
 	mainConsole = consoleDemoInit();
 	debugConsole = (PrintConsole *) malloc(sizeof(PrintConsole));
 
+	if (!debugConsole)
+		abort_msg("malloc failed");
+
 	memcpy(debugConsole, consoleGetDefault(), sizeof(PrintConsole));
 	videoSetMode(MODE_0_2D);
 	vramSetBankA(VRAM_A_MAIN_BG); 
@@ -352,7 +355,7 @@ char insert_ap(Wifi_AccessPoint *ap)
 			ht_entry->ap->rssi = ap->rssi;
 			ht_entry->ap->flags = ap->flags;
 			memcpy(ht_entry->ap->ssid, ap->ssid, 
-				ap->ssid_len > 32 ? 32 : ap->ssid_len);
+				(unsigned char) ap->ssid_len > 32 ? 32 : ap->ssid_len);
 			return 1;
 		}
 	}
@@ -433,10 +436,11 @@ void display_list(int index, int flags)
  */
 void clean_timeouts()
 {
-	struct AP_HT_Entry *cur, *prev;
+	struct AP_HT_Entry *cur, *prev, *temp;
 	int i, type, idx;
 
 
+	temp = NULL;
 	/* walk the whole hash table */
 	for(i = 0; i < 256; i++) {
 		cur = ap_ht[i];
@@ -465,12 +469,16 @@ void clean_timeouts()
 				num_null[type]++;
 				num[type]--;
 
-				free(cur->ap);
-				free(cur);
+				temp = cur;
 				numap--;
 			}
 			prev = cur;
 			cur = cur->next;
+			if (temp) {
+				free(temp->ap);
+				free(temp);
+				temp = NULL;
+			}
 		}
 	}
 }
@@ -503,7 +511,7 @@ void wardriving_loop()
 	num_aps = 0;
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
-	strcpy(modes, "OPN+WEP+WPA");
+	strncpy(modes, "OPN+WEP+WPA", 12);
 
 	index = 0;
 
