@@ -508,7 +508,6 @@ void wardriving_loop()
 			malloc(sizes[i]*sizeof(struct AP_HT_Entry *));
 		if (ap[i] == NULL) abort_msg("alloc failed");
 	}
-	num_aps = 0;
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
 	strncpy(modes, "OPN+WEP+WPA", 12);
