@@ -22,7 +22,7 @@ Do NOT mail me to ask me how to crack WEP/WPA ...
 History :
 v0.3  : ??? 
 	- got rid of PALib (way easier to build)
-	- timeouts should work better
+	- timeouts should work better (correctly ?)
 	- cleaner code
 	- connection test to open APs
 
