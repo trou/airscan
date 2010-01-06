@@ -39,7 +39,6 @@
 #define MAX_Y_TEXT 24			/* Number of vertical tiles */
 #define MAX_X_TEXT 33			/* Number of horiz tiles */
 
-PrintConsole *debugConsole, *mainConsole;
 int timeout = 0;
 u32 curtick; 				/* Current tick to handle timeout */
 char modes[12];				/* display modes (OPN/WEP/WPA) */
@@ -64,104 +63,6 @@ enum display_states {
 	STATE_CONNECTED,
 	STATE_ERROR
 };
-
-
-
-void clear_main()
-{
-	consoleSelect(mainConsole);
-	consoleClear();
-}
-
-void init_consoles(void)
-{
-	// debug console on top
-	mainConsole = consoleDemoInit();
-	debugConsole = (PrintConsole *) malloc(sizeof(PrintConsole));
-
-	if (!debugConsole)
-		exit(1);
-
-	memcpy(debugConsole, consoleGetDefault(), sizeof(PrintConsole));
-	videoSetMode(MODE_0_2D);
-	vramSetBankA(VRAM_A_MAIN_BG); 
-
-	consoleInit(debugConsole, debugConsole->bgLayer, BgType_Text4bpp,
-			BgSize_T_256x256, debugConsole->mapBase, 
-			debugConsole->gfxBase, true, true);
-#ifdef DEBUG
-	printf("Test debug console\n");
-#endif
-	consoleSelect(mainConsole);
-#ifdef DEBUG
-	printf("Test main console\n");
-#endif
-	return;
-}
-
-#define print_to_debug(x) print_to(debugConsole, (x))
-#define print_to_main(x) print_to(mainConsole, (x))
-#define printf_to_debug(...) printf_to(debugConsole, __VA_ARGS__)
-#define printf_to_main(...) printf_to(mainConsole, __VA_ARGS__)
-#define print_xy_to_debug(...) print_xy_to(debugConsole, __VA_ARGS__)
-#define print_xy(...) print_xy_to(mainConsole, __VA_ARGS__)
-#define printf_xy_to_debug(...) printf_xy_to(debugConsole, __VA_ARGS__)
-#define printf_xy(...) printf_xy_to(mainConsole, __VA_ARGS__)
-
-/* add a line to scrolling display wrapping lines if necessary */
-void print_to(PrintConsole *c, char *str)
-{
-	consoleSelect(c);
-	printf("%s\n", str);
-}
-
-void printf_to(PrintConsole *c, char *format, ...)
-{
-	va_list args;
-
-	consoleSelect(c);
-	va_start(args, format);
-	vprintf(format, args);
-	va_end(args);
-}
-
-void print_xy_to(PrintConsole *c, int x, int y, char *str)
-{
-	static char buffer[MAX_X_TEXT+9];
-
-	consoleSelect(c);
-	snprintf(buffer, MAX_X_TEXT+8, "\x1b[%d;%dH%s", y, x, str);
-	iprintf(buffer);
-}
-
-void printf_xy_to(PrintConsole *c, int x, int y, char *format, ...)
-{
-	static char buffer[MAX_X_TEXT+1];
-	static char buffer2[MAX_X_TEXT+9];
-	va_list args;
-
-	consoleSelect(c);
-	va_start(args, format);
-
-	vsnprintf(buffer, MAX_X_TEXT+1, format, args);
-	snprintf(buffer2, MAX_X_TEXT+8, "\x1b[%d;%dH%s", y, x, buffer);
-	iprintf(buffer2);
-	va_end(args);
-}
-
-void abort_msg(char *msg)
-{
-	print_to_debug("Fatal error :");
-	print_to_debug(msg);
-	while(1) swiWaitForVBlank();
-}
-
-
-u32 tick()
-{
-	return ((TIMER1_DATA*(1<<16))+TIMER0_DATA)/33;
-}
-
 
 struct AP_HT_Entry {
 	struct AP_HT_Entry 	*next;
@@ -190,6 +91,11 @@ int first_null[3];
 
 /* Currently displayed APs */
 struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
+
+u32 tick()
+{
+	return ((TIMER1_DATA*(1<<16))+TIMER0_DATA)/33;
+}
 
 int connect_ap(Wifi_AccessPoint *ap)
 {
@@ -225,28 +131,6 @@ int connect_ap(Wifi_AccessPoint *ap)
 	return status;
 }
 
-void display_ap(Wifi_AccessPoint *ap)
-{
-	static struct in_addr ip, gw, sn, dns1, dns2;
-	int status;
-
-	clear_main();
-
-	status = Wifi_AssocStatus();
-
-	print_xy(0, 0, "SSID :");
-	print_xy(0, 1, ap->ssid);
-	printf_xy(0, 2, "State : %s", ASSOCSTATUS_STRINGS[status]);
-	if (status == ASSOCSTATUS_ASSOCIATED) {
-		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
-
-		printf_xy(0, 3, "IP :     %s", inet_ntoa(ip));
-		printf_xy(0, 4, "Subnet : %s", inet_ntoa(sn));
-		printf_xy(0, 5, "GW :     %s", inet_ntoa(gw));
-		printf_xy(0, 6, "DNS1 :   %s", inet_ntoa(dns1));
-		printf_xy(0, 7, "DNS2 :   %s", inet_ntoa(dns2));
-	}
-}
 
 void do_realloc(int type)
 {
@@ -364,72 +248,6 @@ char insert_ap(Wifi_AccessPoint *ap)
 	return 0;
 }
 
-/* Print "entry" on line "line" */
-void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
-{
-
-	if (line < DISPLAY_LINES)
-		cur_entries[line] = entry;
-
-	printf_xy(0, line*3, "%s", entry->ap->ssid);
-	printf_xy(0, line*3+1, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
-	  entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
-	  entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
-	  mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
-	  (curtick-entry->tick)/1000);
-	print_xy(0, line*3+2, SCREEN_SEP);
-}
-
-void display_list(int index, int flags)
-{
-	int i;
-	int displayed;		/* Number of items already displayed */
-
-	/* header */
-	displayed = 1;
-
-	clear_main();
-
-	printf_xy(0, 0, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
-	printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], 
-			num[WEP], num[WPA], index);
-	print_xy(0, 2, SCREEN_SEP);
-
-	memset(cur_entries, 0, sizeof(cur_entries));
-
-	if (flags&DISP_OPN) {
-		i = (first_null[OPN] >= 0 && index > first_null[OPN] ?
-			first_null[OPN] : index);
-		for (;i<(num[OPN]+num_null[OPN]) && displayed < DISPLAY_LINES;
-			i++) {
-			if (ap[OPN][i])
-				display_entry(displayed++, ap[OPN][i], "OPN");
-		}
-		index -= num[OPN];
-		if (index < 0) index = 0;
-	}
-	if (flags&DISP_WEP) {
-		i = (first_null[WEP] >= 0 && index > first_null[WEP] ?
-			first_null[WEP] : index);
-		for (; i<(num[WEP]+num_null[WEP]) && displayed < DISPLAY_LINES; 
-			i++) {
-			if (ap[WEP][i])
-				display_entry(displayed++, ap[WEP][i], "WEP");
-		}
-		index -= num[WEP];
-		if (index < 0) index = 0;
-	}
-	if (flags&DISP_WPA) {
-		i = (first_null[WPA] >= 0 && index > first_null[WPA] ?
-			first_null[WPA] : index);
-		for (; i<(num[WPA]+num_null[WPA]) && displayed < DISPLAY_LINES; 
-			i++) {
-			if (ap[WPA][i])
-				display_entry(displayed++, ap[WPA][i], "WPA");
-		}
-	}
-	return;
-}
 
 /* Delete APs which have timeouted
  * not working due to the way I changed the lists
