@@ -22,22 +22,15 @@
  */
 
 
-#include <stdio.h>
-#include <stdarg.h>
 #include <netinet/in.h>
 #include <nds.h>
 #include <dswifi9.h>
+#include "airscan.h"
+#include "display.h"
+#include "utils.h"
 
 //#define DEBUG
 
-#define SCREEN_SEP "--------------------------------"
-
-#define DISP_OPN 1
-#define DISP_WEP 2
-#define DISP_WPA 4
-
-#define MAX_Y_TEXT 24			/* Number of vertical tiles */
-#define MAX_X_TEXT 33			/* Number of horiz tiles */
 
 int timeout = 0;
 u32 curtick; 				/* Current tick to handle timeout */
@@ -46,36 +39,9 @@ char modes[12];				/* display modes (OPN/WEP/WPA) */
 	char debug = 1;
 #endif
 
-enum array_indexes {
-	OPN = 0,
-	WEP,
-	WPA
-};
-
-enum states {
-	STATE_SCANNING,
-	STATE_AP_DISPLAY
-};
-
-enum display_states {
-	STATE_PACKET,
-	STATE_CONNECTING,
-	STATE_CONNECTED,
-	STATE_ERROR
-};
-
-struct AP_HT_Entry {
-	struct AP_HT_Entry 	*next;
-	u32			tick;
-	Wifi_AccessPoint 	*ap;
-	int			array_idx;
-};
-
-
 struct AP_HT_Entry *ap_ht[256] = {NULL};	/* hash table */
 unsigned int numap = 0;				/* number of APs */
 
-#define DISPLAY_LINES 8
 /* Default allocation size for arrays */
 #define DEFAULT_ALLOC_SIZE 100
 /* Arrays of pointers for fast access */
@@ -89,8 +55,6 @@ int num_null[3];
 /* First NULL entry */
 int first_null[3];
 
-/* Currently displayed APs */
-struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
 
 u32 tick()
 {

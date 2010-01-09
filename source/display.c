@@ -1,3 +1,12 @@
+#include <netinet/in.h>
+#include <nds.h>
+#include <dswifi9.h>
+#include "airscan.h"
+#include "utils.h"
+#include "display.h"
+
+struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
+
 void display_ap(Wifi_AccessPoint *ap)
 {
 	static struct in_addr ip, gw, sn, dns1, dns2;
