@@ -1,5 +1,3 @@
 - when the stylus is used to "click" on a certain AP, switch to AP mode :
-	- try to connect (standard IP)
 	- packet sniffer
 - scan on specific channel
-- split code in separate files

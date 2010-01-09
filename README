@@ -5,10 +5,10 @@ when launched.
 
 Known bugs :
 	- crashes sometimes when the number of APs is high (> 400)
-	- timeouts handling is bit buggy
 	- when connecting to an AP then going back to scanning 
 	  and trying to connect to another AP will not work
-	  correctly
+	  correctly (dswifi bug ?)
+	- timeouts handling is still probably a bit buggy
 
 How to build :
 Pach dswifi, rebuild, rebuild default.arm7, copy
@@ -20,10 +20,10 @@ Please read the TODO file before mailing me.
 Do NOT mail me to ask me how to crack WEP/WPA ...
 
 History :
-v0.3  : ??? 
+v0.5  : ??? 
 	- got rid of PALib (way easier to build)
 	- timeouts should work better (correctly ?)
-	- cleaner code
+	- cleaner code, split in different files
 	- connection test to open APs
 
 v0.2  : 02/03/2008
