@@ -29,15 +29,9 @@
 #include "display.h"
 #include "utils.h"
 
-//#define DEBUG
-
-
 int timeout = 0;
 u32 curtick; 				/* Current tick to handle timeout */
 char modes[12];				/* display modes (OPN/WEP/WPA) */
-#ifdef DEBUG
-	char debug = 1;
-#endif
 
 struct AP_HT_Entry *ap_ht[256] = {NULL};	/* hash table */
 unsigned int numap = 0;				/* number of APs */
@@ -104,7 +98,7 @@ void do_realloc(int type)
 		ap[type] = (struct AP_HT_Entry **)realloc(ap[type],sizes[type]);
 		if (!ap[type]) abort_msg("Alloc failed !");
 #ifdef DEBUG
-		if(debug) print_to_debug("realloc'd");
+		print_to_debug("realloc'd");
 #endif
 	}
 }
@@ -374,15 +368,6 @@ void wardriving_loop()
 			modes[strlen(modes)-1] = 0; /* remove the + */
 		}
 
-#ifdef DEBUG
-		if (pressed & KEY_Y) {
-			debug ^= 1;
-			if (debug)
-				print_to_debug("Debug is now ON");
-			else
-				print_to_debug("Debug is now OFF");
-		}
-#endif
 		display_list(index, flags);
 		break;
 
@@ -439,9 +424,6 @@ int main(int argc, char ** argv)
 	print_to_debug("B: Toggle OPN");
 	print_to_debug("A: Toggle WEP");
 	print_to_debug("X: Toggle WPA");
-#ifdef DEBUG
-	print_to_debug("Y: Toggle debug");
-#endif
 	print_to_debug("Up/Down : scroll");
 	print_to_debug("Left/Right : Timeout -/+ (buggy)");
 	print_to_debug("");

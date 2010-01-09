@@ -27,6 +27,8 @@
 
 #include <dswifi9.h>
 
+//#define DEBUG
+
 #define DISP_OPN 1
 #define DISP_WEP 2
 #define DISP_WPA 4
