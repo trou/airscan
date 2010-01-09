@@ -377,25 +377,26 @@ void wardriving_loop()
 			 */
 			/* Try to connect */
 			if (!(entry->ap->flags&WFLAG_APDATA_WPA) &&
-				!(entry->ap->flags&WFLAG_APDATA_WEP) &&
-				display_state == STATE_CONNECTING) {
-				print_to_debug("Trying to connect to :");
-				print_to_debug(entry->ap->ssid);
-				print_to_debug("Press B to cancel");
-				switch(connect_ap(entry->ap)) {
-					case ASSOCSTATUS_ASSOCIATED:
-						display_state = STATE_CONNECTED;
-						break;
-							
-					default:
-						print_to_debug("Cnx failed");
-						state = STATE_SCANNING;
-						Wifi_ScanMode();
+				!(entry->ap->flags&WFLAG_APDATA_WEP)) {
+				if (display_state == STATE_CONNECTING) {
+					print_to_debug("Trying to connect to :");
+					print_to_debug(entry->ap->ssid);
+					print_to_debug("Press B to cancel");
+					switch(connect_ap(entry->ap)) {
+						case ASSOCSTATUS_ASSOCIATED:
+							display_state = STATE_CONNECTED;
+							break;
+								
+						default:
+							print_to_debug("Cnx failed");
+							state = STATE_SCANNING;
+							Wifi_ScanMode();
+					}
+				} else {
+					print_to_debug("WEP or WPA AP");
+					state = STATE_SCANNING;
+					break;
 				}
-			} else {
-				print_to_debug("WEP or WPA AP");
-				state = STATE_SCANNING;
-				break;
 			}
 
 			display_ap(entry->ap);
