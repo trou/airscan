@@ -392,11 +392,11 @@ void wardriving_loop()
 							state = STATE_SCANNING;
 							Wifi_ScanMode();
 					}
-				} else {
-					print_to_debug("WEP or WPA AP");
-					state = STATE_SCANNING;
-					break;
 				}
+			} else {
+				print_to_debug("WEP or WPA AP");
+				state = STATE_SCANNING;
+				break;
 			}
 
 			display_ap(entry->ap);
