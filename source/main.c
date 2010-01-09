@@ -1,7 +1,7 @@
 /**
  * AirScan - main.c
  *
- * Copyright 2008-2009 Raphaël Rigo
+ * Copyright 2008-2010 Raphaël Rigo
  *
  * For mails :
  * user : devel-nds
