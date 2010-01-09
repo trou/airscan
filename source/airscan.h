@@ -29,6 +29,7 @@
 
 //#define DEBUG
 
+/* flags for types to display */
 #define DISP_OPN 1
 #define DISP_WEP 2
 #define DISP_WPA 4
@@ -39,11 +40,13 @@ enum array_indexes {
 	WPA
 };
 
+/* states for main loop */
 enum states {
 	STATE_SCANNING,
 	STATE_AP_DISPLAY
 };
 
+/* states for specific AP display */
 enum display_states {
 	STATE_PACKET,
 	STATE_CONNECTING,
@@ -51,6 +54,10 @@ enum display_states {
 	STATE_ERROR
 };
 
+/* internal structure for storing AP data 
+   APs are stored in a hash table, the last byte of the AP
+   MAC address is the key.
+   a linked list follows */
 struct AP_HT_Entry {
 	struct AP_HT_Entry 	*next;
 	u32			tick;
@@ -58,7 +65,7 @@ struct AP_HT_Entry {
 	int			array_idx;
 };
 
-extern u32 curtick;
+extern u32 curtick;		/* current tick */
 extern unsigned int numap;	/* total number of APs */
 extern char modes[12];		/* display modes (OPN/WEP/WPA) */
 extern int timeout ;		/* number of milliseconds for AP timeout */
@@ -66,6 +73,6 @@ extern int timeout ;		/* number of milliseconds for AP timeout */
 
 extern int num_null[3];		/* Number of NULL entries in each array */
 extern int first_null[3];	/* First NULL entry */
-extern int num[3];
+extern int num[3];		/* number of entries of each type */
 extern struct AP_HT_Entry **ap[3];
 #endif

@@ -30,6 +30,7 @@
 
 struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
 
+/* Display IP data for connected AP */
 void display_ap(Wifi_AccessPoint *ap)
 {
 	static struct in_addr ip, gw, sn, dns1, dns2;
@@ -69,6 +70,8 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 	print_xy(0, line*3+2, SCREEN_SEP);
 }
 
+/* display a list of AP on the screen, starting at "index", displaying
+   only those specified in "flags" */
 void display_list(int index, int flags)
 {
 	int i;

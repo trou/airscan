@@ -49,12 +49,12 @@ int num_null[3];
 /* First NULL entry */
 int first_null[3];
 
-
 u32 tick()
 {
 	return ((TIMER1_DATA*(1<<16))+TIMER0_DATA)/33;
 }
 
+/* Try to connect to given AP and get an IP via DHCP */
 int connect_ap(Wifi_AccessPoint *ap)
 {
 	int ret;
@@ -206,10 +206,7 @@ char insert_ap(Wifi_AccessPoint *ap)
 	return 0;
 }
 
-
-/* Delete APs which have timeouted
- * not working due to the way I changed the lists
- */
+/* Delete APs which have timeouted */
 void clean_timeouts()
 {
 	struct AP_HT_Entry *cur, *prev, *temp;
@@ -374,7 +371,7 @@ void wardriving_loop()
 		case STATE_AP_DISPLAY:
 			/* TODO:
 			 * 1) default to packet display
-			 * 2) try DHCP
+			 * 2) try DHCP [DONE]
 			 * 3) try default IPs
 			 * 4) handle WEP ?
 			 */

@@ -37,7 +37,7 @@ void clear_main()
 
 void init_consoles(void)
 {
-	// debug console on top
+	/* debug console on top */
 	mainConsole = consoleDemoInit();
 	debugConsole = (PrintConsole *) malloc(sizeof(PrintConsole));
 
