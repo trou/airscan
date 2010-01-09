@@ -77,7 +77,7 @@ int connect_ap(Wifi_AccessPoint *ap)
 
 		status = Wifi_AssocStatus();
 		if (oldStatus != status)
-			print_to_main((char *)ASSOCSTATUS_STRINGS[status]);
+			printf_to_main("\n%s", (char *)ASSOCSTATUS_STRINGS[status]);
 		else
 			printf_to_main(".");
 
