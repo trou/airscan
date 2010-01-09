@@ -392,7 +392,12 @@ void wardriving_loop()
 						state = STATE_SCANNING;
 						Wifi_ScanMode();
 				}
+			} else {
+				print_to_debug("WEP or WPA AP");
+				state = STATE_SCANNING;
+				break;
 			}
+
 			display_ap(entry->ap);
 			scanKeys();
 			if(keysDown() & KEY_B) {
@@ -415,14 +420,14 @@ int main(int argc, char ** argv)
 	/* Setup logging console on top screen */
 	init_consoles();
 
-	print_to_debug("AirScan v0.3 by Raphael Rigo");
-	print_to_debug("inspired by wifi_lib_test v0.3a by Stephen Stair");
+	print_to_debug("AirScan v0.5 by Raphael Rigo");
+	print_to_debug("released 10/01/2009");
 	print_to_debug("");
 	print_to_debug("B: Toggle OPN");
 	print_to_debug("A: Toggle WEP");
 	print_to_debug("X: Toggle WPA");
 	print_to_debug("Up/Down : scroll");
-	print_to_debug("Left/Right : Timeout -/+ (buggy)");
+	print_to_debug("Left/Right : Timeout -/+");
 	print_to_debug("");
 
 	print_to_debug("Initializing Wifi...");

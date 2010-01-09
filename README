@@ -1,5 +1,9 @@
 AirScan is a basic wardriving utility for the Nintendo DS
 
+This app was inspired by wifi_lib_test v0.3a by Stephen Stair.
+Thanks a lot Stephen for dswifi !
+See his page at http://www.akkit.org/dswifi/.
+
 There is not much to know, basic usage information is displayed
 when launched.
 
