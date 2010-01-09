@@ -42,15 +42,16 @@ void display_ap(Wifi_AccessPoint *ap)
 
 	print_xy(0, 0, "SSID :");
 	print_xy(0, 1, ap->ssid);
-	printf_xy(0, 2, "State : %s", ASSOCSTATUS_STRINGS[status]);
+	print_xy(0, 2, "State :");
+	printf_xy(0, 3, "%s", ASSOCSTATUS_STRINGS[status]);
 	if (status == ASSOCSTATUS_ASSOCIATED) {
 		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
 
-		printf_xy(0, 3, "IP :     %s", inet_ntoa(ip));
-		printf_xy(0, 4, "Subnet : %s", inet_ntoa(sn));
-		printf_xy(0, 5, "GW :     %s", inet_ntoa(gw));
-		printf_xy(0, 6, "DNS1 :   %s", inet_ntoa(dns1));
-		printf_xy(0, 7, "DNS2 :   %s", inet_ntoa(dns2));
+		printf_xy(0, 4, "IP :     %s", inet_ntoa(ip));
+		printf_xy(0, 5, "Subnet : %s", inet_ntoa(sn));
+		printf_xy(0, 6, "GW :     %s", inet_ntoa(gw));
+		printf_xy(0, 7, "DNS1 :   %s", inet_ntoa(dns1));
+		printf_xy(0, 8, "DNS2 :   %s", inet_ntoa(dns2));
 	}
 }
 
