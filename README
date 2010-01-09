@@ -24,7 +24,7 @@ Please read the TODO file before mailing me.
 Do NOT mail me to ask me how to crack WEP/WPA ...
 
 History :
-v0.5  : ??? 
+v0.5  : 09/01/2010
 	- got rid of PALib (way easier to build)
 	- timeouts should work better (correctly ?)
 	- cleaner code, split in different files
