@@ -23,6 +23,9 @@ make
 
 Please read the TODO file before mailing me.
 Do NOT mail me to ask me how to crack WEP/WPA ...
+Also, the DS is way too underpowered to be even close to useful
+to crack WEP/WPA access point. If you want to do that, use a PC
+and aircrack.
 
 History :
 v0.5  : 09/01/2010
