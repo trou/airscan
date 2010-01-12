@@ -394,7 +394,7 @@ void wardriving_loop()
 					}
 				}
 			} else {
-				print_to_debug("WEP or WPA AP");
+				print_to_debug("WEP/WPA AP not supported");
 				state = STATE_SCANNING;
 				break;
 			}
