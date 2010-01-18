@@ -283,7 +283,8 @@ void wardriving_loop()
 	}
 
 	flags = DISP_WPA|DISP_OPN|DISP_WEP;
-	strncpy(modes, "OPN+WEP+WPA", 12);
+	memset(modes, 0, sizeof(modes));
+	strcpy(modes, "OPN+WEP+WPA");
 
 	index = 0;
 
