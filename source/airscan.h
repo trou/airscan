@@ -67,7 +67,7 @@ struct AP_HT_Entry {
 
 extern u32 curtick;		/* current tick */
 extern unsigned int numap;	/* total number of APs */
-extern char modes[12];		/* display modes (OPN/WEP/WPA) */
+extern char modes[13];		/* display modes (OPN/WEP/WPA) */
 extern int timeout ;		/* number of milliseconds for AP timeout */
 
 

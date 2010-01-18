@@ -31,7 +31,7 @@
 
 int timeout = 0;
 u32 curtick; 				/* Current tick to handle timeout */
-char modes[12];				/* display modes (OPN/WEP/WPA) */
+char modes[13];				/* display modes (OPN/WEP/WPA) */
 
 struct AP_HT_Entry *ap_ht[256] = {NULL};	/* hash table */
 unsigned int numap = 0;				/* number of APs */
