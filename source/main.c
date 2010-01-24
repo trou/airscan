@@ -422,8 +422,8 @@ int main(int argc, char ** argv)
 	/* Setup logging console on top screen */
 	init_consoles();
 
-	print_to_debug("AirScan v0.5 by Raphael Rigo");
-	print_to_debug("released 10/01/2009");
+	print_to_debug("AirScan v0.5.1 by Raphael Rigo");
+	print_to_debug("released 18/01/2009");
 	print_to_debug("");
 	print_to_debug("B: Toggle OPN");
 	print_to_debug("A: Toggle WEP");
