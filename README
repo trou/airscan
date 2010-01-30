@@ -28,9 +28,13 @@ to crack WEP/WPA access point. If you want to do that, use a PC
 and aircrack.
 
 History :
+v0.6  : XX/02/2010 
+	- hopefully fix timeouts related bugs
+
 v0.5.1: 18/01/2010
 	- bugfix (modes string off by one)
 	  thanks to the reporter.
+
 v0.5  : 09/01/2010
 	- got rid of PALib (way easier to build)
 	- timeouts should work better (correctly ?)
