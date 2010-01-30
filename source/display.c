@@ -77,6 +77,9 @@ int display_type(int type, int index, char *str)
 	int i;
 	int real_index = 0;
 
+	if (index > num[type])
+		return index-num[type];
+	
 	i = (first_null[type] >= 0 && index > first_null[type] ?
 		first_null[type] : index);
 	real_index = i;
