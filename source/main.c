@@ -103,9 +103,20 @@ void do_realloc(int type)
 	}
 }
 
+/* AP insertion algorithm :
+	1) check in hash table (and linked list)
+	   if the AP is already present
+	2) if not, insert in HT
+	3) insert also in fast access list
+	     - is there any NULL entry ?
+	     	yes : use it, change NULL index
+		no : put at the end
+	4) update counters
+*/
+
 /* Insert the new AP in the fast access list
    and update the NULL entries if needed */
-void do_insert_fast(int type, struct AP_HT_Entry *new_ap)
+void insert_fast(int type, struct AP_HT_Entry *new_ap)
 {
 	/* Any NULL entry (timeouts) ? */
 	if (num_null[type] > 0) {
@@ -146,18 +157,6 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 	new_ht_ap->tick = curtick;
 	new_ht_ap->next = NULL;
 
-	if (ap_copy->flags&WFLAG_APDATA_WPA) {
-		do_realloc(WPA);
-		do_insert_fast(WPA, new_ht_ap);
-	} else {
-		if (ap_copy->flags&WFLAG_APDATA_WEP) {
-			do_realloc(WEP);
-			do_insert_fast(WEP, new_ht_ap);
-		} else {
-			do_realloc(OPN);
-			do_insert_fast(OPN, new_ht_ap);
-		}
-	}
 
 	return new_ht_ap;
 }
@@ -177,10 +176,12 @@ char insert_ap(Wifi_AccessPoint *ap)
 	int key	= ap->macaddr[5];
 	struct AP_HT_Entry *ht_entry;
 	char same;
+	struct AP_HT_Entry *to_insert = NULL;
 
 	/* check if there's already an entry in the hash table */
 	if (ap_ht[key] == NULL) {
-		ap_ht[key] = entry_from_ap(ap);
+		to_insert = entry_from_ap(ap);
+		ap_ht[key] = to_insert;
 	} else {
 		ht_entry = ap_ht[key];
 		/* Check if the AP is already known, walking the linked list */
@@ -188,9 +189,10 @@ char insert_ap(Wifi_AccessPoint *ap)
 			&& ht_entry->next)
 			ht_entry = ht_entry->next;
 
-		if (same == 0)
-			ht_entry->next = entry_from_ap(ap);
-		else {
+		if (same == 0) {
+			to_insert = entry_from_ap(ap);
+			ht_entry->next = to_insert; 
+		} else {
 			/* AP is already there, just update data */
 			ht_entry->tick = curtick;
 			ht_entry->ap->channel = ap->channel;
@@ -199,6 +201,21 @@ char insert_ap(Wifi_AccessPoint *ap)
 			memcpy(ht_entry->ap->ssid, ap->ssid, 
 				(unsigned char) ap->ssid_len > 32 ? 32 : ap->ssid_len);
 			return 1;
+		}
+	}
+
+	if (to_insert) {
+		if (to_insert->ap->flags&WFLAG_APDATA_WPA) {
+			do_realloc(WPA);
+			insert_fast(WPA, to_insert);
+		} else {
+			if (to_insert->ap->flags&WFLAG_APDATA_WEP) {
+				do_realloc(WEP);
+				insert_fast(WEP, to_insert);
+			} else {
+				do_realloc(OPN);
+				insert_fast(OPN, to_insert);
+			}
 		}
 	}
 	numap++;
