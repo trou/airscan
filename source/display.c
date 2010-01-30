@@ -97,8 +97,6 @@ int display_type(int type, int index, char *str)
    only those specified in "flags" */
 void display_list(int index, int flags)
 {
-	int i;
-
 	/* header */
 	displayed = 1;
 
