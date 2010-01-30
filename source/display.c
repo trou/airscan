@@ -29,6 +29,7 @@
 #include "display.h"
 
 struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
+int displayed;		/* Number of items already displayed */
 
 /* Display IP data for connected AP */
 void display_ap(Wifi_AccessPoint *ap)
@@ -71,12 +72,32 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 	print_xy(0, line*3+2, SCREEN_SEP);
 }
 
+int display_type(int type, int index, char *str)
+{
+	int i;
+	int real_index = 0;
+
+	i = (first_null[type] >= 0 && index > first_null[type] ?
+		first_null[type] : index);
+	real_index = i;
+	for (;i<(num[type]+num_null[type]) && displayed < DISPLAY_LINES;
+		i++) {
+		if (ap[type][i]) {
+			if (real_index >= index)
+				display_entry(displayed++, ap[type][i], str);
+			real_index++;
+		}
+	}
+	index -= num[type];
+	if (index < 0) index = 0;
+	return index;
+}
+
 /* display a list of AP on the screen, starting at "index", displaying
    only those specified in "flags" */
 void display_list(int index, int flags)
 {
 	int i;
-	int displayed;		/* Number of items already displayed */
 
 	/* header */
 	displayed = 1;
@@ -90,36 +111,14 @@ void display_list(int index, int flags)
 
 	memset(cur_entries, 0, sizeof(cur_entries));
 
-	if (flags&DISP_OPN) {
-		i = (first_null[OPN] >= 0 && index > first_null[OPN] ?
-			first_null[OPN] : index);
-		for (;i<(num[OPN]+num_null[OPN]) && displayed < DISPLAY_LINES;
-			i++) {
-			if (ap[OPN][i])
-				display_entry(displayed++, ap[OPN][i], "OPN");
-		}
-		index -= num[OPN];
-		if (index < 0) index = 0;
-	}
-	if (flags&DISP_WEP) {
-		i = (first_null[WEP] >= 0 && index > first_null[WEP] ?
-			first_null[WEP] : index);
-		for (; i<(num[WEP]+num_null[WEP]) && displayed < DISPLAY_LINES; 
-			i++) {
-			if (ap[WEP][i])
-				display_entry(displayed++, ap[WEP][i], "WEP");
-		}
-		index -= num[WEP];
-		if (index < 0) index = 0;
-	}
-	if (flags&DISP_WPA) {
-		i = (first_null[WPA] >= 0 && index > first_null[WPA] ?
-			first_null[WPA] : index);
-		for (; i<(num[WPA]+num_null[WPA]) && displayed < DISPLAY_LINES; 
-			i++) {
-			if (ap[WPA][i])
-				display_entry(displayed++, ap[WPA][i], "WPA");
-		}
-	}
+	if (flags&DISP_OPN)
+		index = display_type(OPN, index, "OPN");
+
+	if (flags&DISP_WEP)
+		index = display_type(WEP, index, "WEP");
+
+	if (flags&DISP_WPA) 
+		display_type(WPA, index, "WPA");
+
 	return;
 }
