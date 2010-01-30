@@ -123,9 +123,12 @@ void insert_fast(int type, struct AP_HT_Entry *new_ap)
 		num_null[type]--;
 		new_ap->array_idx = first_null[type];
 		ap[type][first_null[type]] = new_ap;
-		if (num_null[type])
-			while(ap[type][++first_null[type]]);
-		else
+		if (num_null[type] > 0) {
+			while(first_null[type] < sizes[type]
+				&& ap[type][++first_null[type]]);
+			if(first_null[type] >= sizes[type])
+				abort_msg("out of bound while looking for NULL");
+		} else
 			first_null[type] = -1;
 	} else {
 		new_ap->array_idx = num[type];
@@ -156,7 +159,6 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 	new_ht_ap->ap = ap_copy;
 	new_ht_ap->tick = curtick;
 	new_ht_ap->next = NULL;
-
 
 	return new_ht_ap;
 }
