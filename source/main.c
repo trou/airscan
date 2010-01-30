@@ -228,11 +228,10 @@ char insert_ap(Wifi_AccessPoint *ap)
 /* Delete APs which have timeouted */
 void clean_timeouts()
 {
-	struct AP_HT_Entry *cur, *prev, *temp;
+	struct AP_HT_Entry *cur, *prev, *to_del;
 	int i, type, idx;
 
-
-	temp = NULL;
+	to_del = NULL;
 	/* walk the whole hash table */
 	for(i = 0; i < 256; i++) {
 		cur = ap_ht[i];
@@ -261,15 +260,16 @@ void clean_timeouts()
 				num_null[type]++;
 				num[type]--;
 
-				temp = cur;
+				to_del = cur;
 				numap--;
 			}
-			prev = cur;
 			cur = cur->next;
-			if (temp) {
-				free(temp->ap);
-				free(temp);
-				temp = NULL;
+			if (to_del) {
+				free(to_del->ap);
+				free(to_del);
+				to_del = NULL;
+			} else {
+				prev = cur;
 			}
 		}
 	}
