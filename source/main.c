@@ -200,8 +200,12 @@ char insert_ap(Wifi_AccessPoint *ap)
 			ht_entry->ap->channel = ap->channel;
 			ht_entry->ap->rssi = ap->rssi;
 			ht_entry->ap->flags = ap->flags;
-			memcpy(ht_entry->ap->ssid, ap->ssid, 
+			if (ap->ssid_len == 0) {
+				memset(ht_entry->ap->ssid, 0, 32);
+			} else {
+				memcpy(ht_entry->ap->ssid, ap->ssid, 
 				(unsigned char) ap->ssid_len > 32 ? 32 : ap->ssid_len);
+			}
 			return 1;
 		}
 	}
