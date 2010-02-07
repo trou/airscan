@@ -265,15 +265,13 @@ void clean_timeouts()
 				num[type]--;
 
 				to_del = cur;
-				numap--;
-			}
-			cur = cur->next;
-			if (to_del) {
+				cur = cur->next;
 				free(to_del->ap);
 				free(to_del);
-				to_del = NULL;
+				numap--;
 			} else {
 				prev = cur;
+				cur = cur->next;
 			}
 		}
 	}
