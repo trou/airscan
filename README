@@ -28,7 +28,7 @@ to crack WEP/WPA access point. If you want to do that, use a PC
 and aircrack.
 
 History :
-v0.6  : XX/02/2010 
+v0.6  : 20/02/2010 
 	- hopefully fix timeouts related bugs
 
 v0.5.1: 18/01/2010
