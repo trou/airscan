@@ -29,6 +29,7 @@ and aircrack.
 
 History :
 v0.6  : 20/02/2010 
+	- fixed scrolling
 	- hopefully fix timeouts related bugs
 
 v0.5.1: 18/01/2010
