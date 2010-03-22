@@ -15,10 +15,9 @@ Known bugs :
 	- timeouts handling is still probably a bit buggy
 
 How to build :
-Pach dswifi using included patch, or use version 0.3.12 which includes it,
-rebuild, rebuild default.arm7, copy
-now you can build airscan :
-make
+1) make sure to use devkitARM 28 and dswifi > 0.3.12.
+2) Setup env vars
+3) Build by typing "make"
 
 
 Please read the TODO file before mailing me.
