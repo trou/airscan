@@ -28,11 +28,12 @@
 #include "utils.h"
 #include "display.h"
 
-struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = {NULL};
-int displayed;		/* Number of items already displayed */
+struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = { NULL };
+
+int displayed;			/* Number of items already displayed */
 
 /* Display IP data for connected AP */
-void display_ap(Wifi_AccessPoint *ap)
+void display_ap(Wifi_AccessPoint * ap)
 {
 	static struct in_addr ip, gw, sn, dns1, dns2;
 	int status;
@@ -63,13 +64,14 @@ void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
 	if (line < DISPLAY_LINES)
 		cur_entries[line] = entry;
 
-	printf_xy(0, line*3, "%s", entry->ap->ssid);
-	printf_xy(0, line*3+1, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
-	  entry->ap->macaddr[0], entry->ap->macaddr[1], entry->ap->macaddr[2],
-	  entry->ap->macaddr[3], entry->ap->macaddr[4], entry->ap->macaddr[5],
-	  mode, entry->ap->channel, (entry->ap->rssi*100)/0xD0,
-	  (curtick-entry->tick)/1000);
-	print_xy(0, line*3+2, SCREEN_SEP);
+	printf_xy(0, line * 3, "%s", entry->ap->ssid);
+	printf_xy(0, line * 3 + 1, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
+		  entry->ap->macaddr[0], entry->ap->macaddr[1],
+		  entry->ap->macaddr[2], entry->ap->macaddr[3],
+		  entry->ap->macaddr[4], entry->ap->macaddr[5], mode,
+		  entry->ap->channel, (entry->ap->rssi * 100) / 0xD0,
+		  (curtick - entry->tick) / 1000);
+	print_xy(0, line * 3 + 2, SCREEN_SEP);
 }
 
 int display_type(int type, int index, char *str)
@@ -78,13 +80,13 @@ int display_type(int type, int index, char *str)
 	int real_index = 0;
 
 	if (index > num[type])
-		return index-num[type];
-	
+		return index - num[type];
+
 	i = (first_null[type] >= 0 && index > first_null[type] ?
-		first_null[type] : index);
+	     first_null[type] : index);
 	real_index = i;
-	for (;i<(num[type]+num_null[type]) && displayed < DISPLAY_LINES;
-		i++) {
+	for (; i < (num[type] + num_null[type]) && displayed < DISPLAY_LINES;
+	     i++) {
 		if (ap[type][i]) {
 			if (real_index >= index)
 				display_entry(displayed++, ap[type][i], str);
@@ -92,7 +94,8 @@ int display_type(int type, int index, char *str)
 		}
 	}
 	index -= num[type];
-	if (index < 0) index = 0;
+	if (index < 0)
+		index = 0;
 	return index;
 }
 
@@ -105,20 +108,20 @@ void display_list(int index, int flags)
 
 	clear_main();
 
-	printf_xy(0, 0, "%d AP On:%s Tmot:%03d", numap, modes, timeout/1000);
-	printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN], 
-			num[WEP], num[WPA], index);
+	printf_xy(0, 0, "%d AP On:%s Tmot:%03d", numap, modes, timeout / 1000);
+	printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN],
+		  num[WEP], num[WPA], index);
 	print_xy(0, 2, SCREEN_SEP);
 
 	memset(cur_entries, 0, sizeof(cur_entries));
 
-	if (flags&DISP_OPN)
+	if (flags & DISP_OPN)
 		index = display_type(OPN, index, "OPN");
 
-	if (flags&DISP_WEP)
+	if (flags & DISP_WEP)
 		index = display_type(WEP, index, "WEP");
 
-	if (flags&DISP_WPA) 
+	if (flags & DISP_WPA)
 		display_type(WPA, index, "WPA");
 
 	return;

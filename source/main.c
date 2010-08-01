@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <netinet/in.h>
 #include <nds.h>
 #include <dswifi9.h>
@@ -30,11 +29,12 @@
 #include "utils.h"
 
 int timeout = 0;
-u32 curtick; 				/* Current tick to handle timeout */
-char modes[13];				/* display modes (OPN/WEP/WPA) */
+u32 curtick;			/* Current tick to handle timeout */
+char modes[13];			/* display modes (OPN/WEP/WPA) */
 
-struct AP_HT_Entry *ap_ht[256] = {NULL};	/* hash table */
-unsigned int numap = 0;				/* number of APs */
+struct AP_HT_Entry *ap_ht[256] = { NULL };	/* hash table */
+
+unsigned int numap = 0;		/* number of APs */
 
 /* Default allocation size for arrays */
 #define DEFAULT_ALLOC_SIZE 100
@@ -51,11 +51,11 @@ int first_null[3];
 
 u32 tick()
 {
-	return ((TIMER1_DATA*(1<<16))+TIMER0_DATA)/33;
+	return ((TIMER1_DATA * (1 << 16)) + TIMER0_DATA) / 33;
 }
 
 /* Try to connect to given AP and get an IP via DHCP */
-int connect_ap(Wifi_AccessPoint *ap)
+int connect_ap(Wifi_AccessPoint * ap)
 {
 	int ret;
 	int status = ASSOCSTATUS_DISCONNECTED;
@@ -63,40 +63,42 @@ int connect_ap(Wifi_AccessPoint *ap)
 	clear_main();
 
 	/* Ask for DHCP */
-	Wifi_SetIP(0,0,0,0,0);	
+	Wifi_SetIP(0, 0, 0, 0, 0);
 	ret = Wifi_ConnectAP(ap, WEPMODE_NONE, 0, NULL);
-	if(ret) {
+	if (ret) {
 		print_to_debug("error connecting");
 		return ASSOCSTATUS_CANNOTCONNECT;
 	}
-		
-	while(status != ASSOCSTATUS_ASSOCIATED && 
-		status != ASSOCSTATUS_CANNOTCONNECT)
-	{
+
+	while (status != ASSOCSTATUS_ASSOCIATED &&
+	       status != ASSOCSTATUS_CANNOTCONNECT) {
 		int oldStatus = status;
 
 		status = Wifi_AssocStatus();
 		if (oldStatus != status)
-			printf_to_main("\n%s", (char *)ASSOCSTATUS_STRINGS[status]);
+			printf_to_main("\n%s",
+				       (char *)ASSOCSTATUS_STRINGS[status]);
 		else
 			printf_to_main(".");
 
 		scanKeys();
-		if(keysDown() & KEY_B) break;
+		if (keysDown() & KEY_B)
+			break;
 		swiWaitForVBlank();
 	}
 
 	return status;
 }
 
-
 void do_realloc(int type)
 {
 	/* realloc needed */
 	if (num[type] >= sizes[type]) {
 		sizes[type] += DEFAULT_ALLOC_SIZE;
-		ap[type] = (struct AP_HT_Entry **)realloc(ap[type],sizes[type]);
-		if (!ap[type]) abort_msg("Alloc failed !");
+		ap[type] =
+		    (struct AP_HT_Entry **)realloc(ap[type], sizes[type]);
+		if (!ap[type])
+			abort_msg("Alloc failed !");
 #ifdef DEBUG
 		print_to_debug("realloc'd");
 #endif
@@ -124,10 +126,11 @@ void insert_fast(int type, struct AP_HT_Entry *new_ap)
 		new_ap->array_idx = first_null[type];
 		ap[type][first_null[type]] = new_ap;
 		if (num_null[type] > 0) {
-			while(first_null[type] < sizes[type]
-				&& ap[type][++first_null[type]]);
-			if(first_null[type] >= sizes[type])
-				abort_msg("out of bound while looking for NULL");
+			while (first_null[type] < sizes[type]
+			       && ap[type][++first_null[type]]) ;
+			if (first_null[type] >= sizes[type])
+				abort_msg
+				    ("out of bound while looking for NULL");
 		} else
 			first_null[type] = -1;
 	} else {
@@ -141,7 +144,7 @@ void insert_fast(int type, struct AP_HT_Entry *new_ap)
  * update tick
  * insert ptr into opn/wep/wpa tables
  */
-struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
+struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint * ap)
 {
 	struct AP_HT_Entry *new_ht_ap;
 	Wifi_AccessPoint *ap_copy;
@@ -152,7 +155,7 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 
 	memcpy(ap_copy, ap, sizeof(Wifi_AccessPoint));
 
-	new_ht_ap = (struct AP_HT_Entry *) malloc(sizeof(struct AP_HT_Entry));
+	new_ht_ap = (struct AP_HT_Entry *)malloc(sizeof(struct AP_HT_Entry));
 	if (!new_ht_ap)
 		abort_msg("Alloc failed !");
 
@@ -165,17 +168,17 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint *ap)
 
 bool inline macaddr_cmp(void *mac1, void *mac2)
 {
-	return (((u32 *)mac1)[0]==((u32 *)mac2)[0]) && 
-		(((u16 *)mac1)[2]==((u16 *)mac2)[2]);
+	return (((u32 *) mac1)[0] == ((u32 *) mac2)[0]) &&
+	    (((u16 *) mac1)[2] == ((u16 *) mac2)[2]);
 }
 
 /* Insert or update ap data in the hash table
  * returns 0 if the ap wasn't present
  * 1 otherwise
  */
-char insert_ap(Wifi_AccessPoint *ap)
+char insert_ap(Wifi_AccessPoint * ap)
 {
-	int key	= ap->macaddr[5];
+	int key = ap->macaddr[5];
 	struct AP_HT_Entry *ht_entry;
 	char same;
 	struct AP_HT_Entry *to_insert = NULL;
@@ -187,13 +190,13 @@ char insert_ap(Wifi_AccessPoint *ap)
 	} else {
 		ht_entry = ap_ht[key];
 		/* Check if the AP is already known, walking the linked list */
-		while (!(same = macaddr_cmp(ap->macaddr,ht_entry->ap->macaddr))
-			&& ht_entry->next)
+		while (!(same = macaddr_cmp(ap->macaddr, ht_entry->ap->macaddr))
+		       && ht_entry->next)
 			ht_entry = ht_entry->next;
 
 		if (same == 0) {
 			to_insert = entry_from_ap(ap);
-			ht_entry->next = to_insert; 
+			ht_entry->next = to_insert;
 		} else {
 			/* AP is already there, just update data */
 			ht_entry->tick = curtick;
@@ -203,19 +206,20 @@ char insert_ap(Wifi_AccessPoint *ap)
 			if (ap->ssid_len == 0) {
 				memset(ht_entry->ap->ssid, 0, 32);
 			} else {
-				memcpy(ht_entry->ap->ssid, ap->ssid, 
-				(unsigned char) ap->ssid_len > 32 ? 32 : ap->ssid_len);
+				memcpy(ht_entry->ap->ssid, ap->ssid,
+				       (unsigned char)ap->ssid_len >
+				       32 ? 32 : ap->ssid_len);
 			}
 			return 1;
 		}
 	}
 
 	if (to_insert) {
-		if (to_insert->ap->flags&WFLAG_APDATA_WPA) {
+		if (to_insert->ap->flags & WFLAG_APDATA_WPA) {
 			do_realloc(WPA);
 			insert_fast(WPA, to_insert);
 		} else {
-			if (to_insert->ap->flags&WFLAG_APDATA_WEP) {
+			if (to_insert->ap->flags & WFLAG_APDATA_WEP) {
 				do_realloc(WEP);
 				insert_fast(WEP, to_insert);
 			} else {
@@ -237,24 +241,25 @@ void clean_timeouts()
 
 	to_del = NULL;
 	/* walk the whole hash table */
-	for(i = 0; i < 256; i++) {
+	for (i = 0; i < 256; i++) {
 		cur = ap_ht[i];
 		prev = NULL;
-		while(cur) {
-			if (curtick-(cur->tick) > timeout) {
-				printf_to_debug("Timeout : %s\n", cur->ap->ssid);
+		while (cur) {
+			if (curtick - (cur->tick) > timeout) {
+				printf_to_debug("Timeout : %s\n",
+						cur->ap->ssid);
 				if (prev)
 					prev->next = cur->next;
 				else
 					ap_ht[i] = cur->next;
 
-				if (cur->ap->flags&WFLAG_APDATA_WPA) {
+				if (cur->ap->flags & WFLAG_APDATA_WPA) {
 					type = WPA;
 				} else {
-					if (cur->ap->flags&WFLAG_APDATA_WEP)
+					if (cur->ap->flags & WFLAG_APDATA_WEP)
 						type = WEP;
-					else 
-						type = OPN;	
+					else
+						type = OPN;
 				}
 				idx = cur->array_idx;
 
@@ -298,97 +303,102 @@ void wardriving_loop()
 		sizes[i] = DEFAULT_ALLOC_SIZE;
 		num[i] = num_null[i] = 0;
 		first_null[i] = -1;
-		ap[i] = (struct AP_HT_Entry **) 
-			malloc(sizes[i]*sizeof(struct AP_HT_Entry *));
-		if (ap[i] == NULL) abort_msg("alloc failed");
+		ap[i] = (struct AP_HT_Entry **)
+		    malloc(sizes[i] * sizeof(struct AP_HT_Entry *));
+		if (ap[i] == NULL)
+			abort_msg("alloc failed");
 	}
 
-	flags = DISP_WPA|DISP_OPN|DISP_WEP;
+	flags = DISP_WPA | DISP_OPN | DISP_WEP;
 	memset(modes, 0, sizeof(modes));
 	strcpy(modes, "OPN+WEP+WPA");
 
 	index = 0;
 
-	
-        TIMER0_CR = TIMER_ENABLE|TIMER_DIV_1024;
-        TIMER1_CR = TIMER_ENABLE|TIMER_CASCADE;
+	TIMER0_CR = TIMER_ENABLE | TIMER_DIV_1024;
+	TIMER1_CR = TIMER_ENABLE | TIMER_CASCADE;
 	lasttick = tick();
-	
-	while (1)
-	{
+
+	while (1) {
 		switch (state) {
-			case STATE_SCANNING:
-		curtick = tick();
+		case STATE_SCANNING:
+			curtick = tick();
 
-		/* Wait for VBL just before key handling and redraw */
-		swiWaitForVBlank();
-		scanKeys();
-		pressed = keysDown();
+			/* Wait for VBL just before key handling and redraw */
+			swiWaitForVBlank();
+			scanKeys();
+			pressed = keysDown();
 
-		/* Handle stylus press to display more detailed infos 
- 		 * handle this before AP insertion, to avoid race
-		 * conditions */
-		if (pressed & KEY_TOUCH) {
-			touchRead(&touchXY);
-			/* Entry number : 8 pixels for text, 3 lines */
-			entry_n = touchXY.py/8/3;
-			entry = cur_entries[entry_n];
+			/* Handle stylus press to display more detailed infos 
+			 * handle this before AP insertion, to avoid race
+			 * conditions */
+			if (pressed & KEY_TOUCH) {
+				touchRead(&touchXY);
+				/* Entry number : 8 pixels for text, 3 lines */
+				entry_n = touchXY.py / 8 / 3;
+				entry = cur_entries[entry_n];
 #ifdef DEBUG
-			printf_to_debug("Entry : Y : %d\n", entry_n);
-			printf_to_debug("SSID : %s\n", entry->ap->ssid);
+				printf_to_debug("Entry : Y : %d\n", entry_n);
+				printf_to_debug("SSID : %s\n", entry->ap->ssid);
 #endif
-			if (entry) {
-				state = STATE_AP_DISPLAY;
-				display_state = STATE_CONNECTING; 
-				break;
+				if (entry) {
+					state = STATE_AP_DISPLAY;
+					display_state = STATE_CONNECTING;
+					break;
+				}
 			}
-		}
 
-		num_aps = Wifi_GetNumAP();
-		for (i = 0; i < num_aps; i++) {
-			if(Wifi_GetAPData(i, &cur_ap) != WIFI_RETURN_OK)
-				continue;
-			insert_ap(&cur_ap);
-		}
+			num_aps = Wifi_GetNumAP();
+			for (i = 0; i < num_aps; i++) {
+				if (Wifi_GetAPData(i, &cur_ap) !=
+				    WIFI_RETURN_OK)
+					continue;
+				insert_ap(&cur_ap);
+			}
 
-		/* Check timeouts every second */
-		if (timeout && (curtick-lasttick > 1000)) {
-			lasttick = tick();
-			clean_timeouts(lasttick);
-		}
+			/* Check timeouts every second */
+			if (timeout && (curtick - lasttick > 1000)) {
+				lasttick = tick();
+				clean_timeouts(lasttick);
+			}
 
-		if (pressed & KEY_RIGHT)
-			timeout += 5000;
-		if (pressed & KEY_LEFT && timeout > 0)
-			timeout -= 5000;
-		
-		if (pressed & KEY_DOWN)
-			index++;
-		if (pressed & KEY_UP && index > 0)
-			index--;
-		if (pressed & KEY_R && (index+(DISPLAY_LINES-1)) <= numap)
-			index += DISPLAY_LINES-1;
-		if (pressed & KEY_L && index >= DISPLAY_LINES-1)
-			index -= DISPLAY_LINES-1;
+			if (pressed & KEY_RIGHT)
+				timeout += 5000;
+			if (pressed & KEY_LEFT && timeout > 0)
+				timeout -= 5000;
 
-		if (pressed & KEY_B)
-			flags ^= DISP_OPN;
-		if (pressed & KEY_A)
-			flags ^= DISP_WEP;
-		if (pressed & KEY_X)
-			flags ^= DISP_WPA;
+			if (pressed & KEY_DOWN)
+				index++;
+			if (pressed & KEY_UP && index > 0)
+				index--;
+			if (pressed & KEY_R
+			    && (index + (DISPLAY_LINES - 1)) <= numap)
+				index += DISPLAY_LINES - 1;
+			if (pressed & KEY_L && index >= DISPLAY_LINES - 1)
+				index -= DISPLAY_LINES - 1;
 
-		/* Update modes string */
-		if (pressed & KEY_B || pressed & KEY_A || pressed & KEY_X) {
-			modes[0] = 0;
-			if(flags&DISP_OPN) strcat(modes,"OPN+");
-			if(flags&DISP_WEP) strcat(modes,"WEP+");
-			if(flags&DISP_WPA) strcat(modes,"WPA+");
-			modes[strlen(modes)-1] = 0; /* remove the + */
-		}
+			if (pressed & KEY_B)
+				flags ^= DISP_OPN;
+			if (pressed & KEY_A)
+				flags ^= DISP_WEP;
+			if (pressed & KEY_X)
+				flags ^= DISP_WPA;
 
-		display_list(index, flags);
-		break;
+			/* Update modes string */
+			if (pressed & KEY_B || pressed & KEY_A
+			    || pressed & KEY_X) {
+				modes[0] = 0;
+				if (flags & DISP_OPN)
+					strcat(modes, "OPN+");
+				if (flags & DISP_WEP)
+					strcat(modes, "WEP+");
+				if (flags & DISP_WPA)
+					strcat(modes, "WPA+");
+				modes[strlen(modes) - 1] = 0; /* remove the + */
+			}
+
+			display_list(index, flags);
+			break;
 
 		case STATE_AP_DISPLAY:
 			/* TODO:
@@ -398,21 +408,22 @@ void wardriving_loop()
 			 * 4) handle WEP ?
 			 */
 			/* Try to connect */
-			if (!(entry->ap->flags&WFLAG_APDATA_WPA) &&
-				!(entry->ap->flags&WFLAG_APDATA_WEP)) {
+			if (!(entry->ap->flags & WFLAG_APDATA_WPA) &&
+			    !(entry->ap->flags & WFLAG_APDATA_WEP)) {
 				if (display_state == STATE_CONNECTING) {
-					print_to_debug("Trying to connect to :");
+					print_to_debug
+					    ("Trying to connect to :");
 					print_to_debug(entry->ap->ssid);
 					print_to_debug("Press B to cancel");
-					switch(connect_ap(entry->ap)) {
-						case ASSOCSTATUS_ASSOCIATED:
-							display_state = STATE_CONNECTED;
-							break;
-								
-						default:
-							print_to_debug("Cnx failed");
-							state = STATE_SCANNING;
-							Wifi_ScanMode();
+					switch (connect_ap(entry->ap)) {
+					case ASSOCSTATUS_ASSOCIATED:
+						display_state = STATE_CONNECTED;
+						break;
+
+					default:
+						print_to_debug("Cnx failed");
+						state = STATE_SCANNING;
+						Wifi_ScanMode();
 					}
 				}
 			} else {
@@ -423,7 +434,7 @@ void wardriving_loop()
 
 			display_ap(entry->ap);
 			scanKeys();
-			if(keysDown() & KEY_B) {
+			if (keysDown() & KEY_B) {
 				print_to_debug("Back to scan mode");
 				state = STATE_SCANNING;
 			}
@@ -433,8 +444,7 @@ void wardriving_loop()
 	}
 }
 
-
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
 
 	//irqInit();
@@ -457,6 +467,6 @@ int main(int argc, char ** argv)
 	Wifi_InitDefault(false);
 
 	wardriving_loop();
-	
+
 	return 0;
 }
