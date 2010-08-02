@@ -469,6 +469,10 @@ void wardriving_loop()
 
 			case STATE_PACKET:
 				Wifi_Update();
+				if (valid_packet)
+					print_to_debug("Un paquet !\n");
+				else
+					print_to_debug("No paquet !\n");
 				break;
 			}
 
