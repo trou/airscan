@@ -48,6 +48,7 @@ enum states {
 
 /* states for specific AP display */
 enum display_states {
+	STATE_PACKET_INIT,
 	STATE_PACKET,
 	STATE_CONNECTING,
 	STATE_CONNECTED,

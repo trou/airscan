@@ -54,6 +54,13 @@ u32 tick()
 	return ((TIMER1_DATA * (1 << 16)) + TIMER0_DATA) / 33;
 }
 
+bool inline macaddr_cmp(void *mac1, void *mac2)
+{
+	return (((u32 *) mac1)[0] == ((u32 *) mac2)[0]) &&
+	    (((u16 *) mac1)[2] == ((u16 *) mac2)[2]);
+}
+
+
 /* Try to connect to given AP and get an IP via DHCP */
 int connect_ap(Wifi_AccessPoint * ap)
 {
@@ -88,6 +95,23 @@ int connect_ap(Wifi_AccessPoint * ap)
 	}
 
 	return status;
+}
+
+#define MAX_PACKET_SIZE 3192
+unsigned char mac_filter[6], valid_packet;
+unsigned char capture_data[MAX_PACKET_SIZE];
+
+void cap_handler(int packetID, int packetlength)
+{
+	if (packetlength > MAX_PACKET_SIZE)
+		packetlength = MAX_PACKET_SIZE;
+
+        valid_packet = 1;
+	Wifi_RxRawReadPacket(packetID, packetlength,
+			     (unsigned short *)(capture_data));
+	if (!macaddr_cmp(capture_data+10, mac_filter) &&
+	    !macaddr_cmp(capture_data+4, mac_filter))
+	    valid_packet = 0;
 }
 
 void do_realloc(int type)
@@ -164,12 +188,6 @@ struct AP_HT_Entry *entry_from_ap(Wifi_AccessPoint * ap)
 	new_ht_ap->next = NULL;
 
 	return new_ht_ap;
-}
-
-bool inline macaddr_cmp(void *mac1, void *mac2)
-{
-	return (((u32 *) mac1)[0] == ((u32 *) mac2)[0]) &&
-	    (((u16 *) mac1)[2] == ((u16 *) mac2)[2]);
 }
 
 /* Insert or update ap data in the hash table
@@ -343,7 +361,10 @@ void wardriving_loop()
 #endif
 				if (entry) {
 					state = STATE_AP_DISPLAY;
-					display_state = STATE_CONNECTING;
+					display_state = STATE_PACKET_INIT;
+					print_to_debug("Packet scan mode\n");
+					print_to_debug(" A : try to connect\n");
+					print_to_debug(" B : back to scan\n");
 					break;
 				}
 			}
@@ -394,23 +415,24 @@ void wardriving_loop()
 					strcat(modes, "WEP+");
 				if (flags & DISP_WPA)
 					strcat(modes, "WPA+");
-				modes[strlen(modes) - 1] = 0; /* remove the + */
+				modes[strlen(modes) - 1] = 0;	/* remove the + */
 			}
 
 			display_list(index, flags);
 			break;
 
 		case STATE_AP_DISPLAY:
-			/* TODO:
-			 * 1) default to packet display
-			 * 2) try DHCP [DONE]
-			 * 3) try default IPs
-			 * 4) handle WEP ?
-			 */
-			/* Try to connect */
-			if (!(entry->ap->flags & WFLAG_APDATA_WPA) &&
-			    !(entry->ap->flags & WFLAG_APDATA_WEP)) {
-				if (display_state == STATE_CONNECTING) {
+			switch (display_state) {
+			case STATE_CONNECTING:
+				/* TODO:
+				 * 1) default to packet display
+				 * 2) try DHCP [DONE]
+				 * 3) try default IPs
+				 * 4) handle WEP ?
+				 */
+				/* Try to connect */
+				if (!(entry->ap->flags & WFLAG_APDATA_WPA) &&
+				    !(entry->ap->flags & WFLAG_APDATA_WEP)) {
 					print_to_debug
 					    ("Trying to connect to :");
 					print_to_debug(entry->ap->ssid);
@@ -425,18 +447,41 @@ void wardriving_loop()
 						state = STATE_SCANNING;
 						Wifi_ScanMode();
 					}
+				} else {
+					print_to_debug
+					    ("WEP/WPA AP not supported");
+					state = STATE_SCANNING;
+					break;
 				}
-			} else {
-				print_to_debug("WEP/WPA AP not supported");
-				state = STATE_SCANNING;
+				break;
+
+			case STATE_CONNECTED:
+				display_ap(entry->ap);
+				break;
+
+			case STATE_PACKET_INIT:
+				memcpy(mac_filter, entry->ap->macaddr, 6);
+				Wifi_SetChannel(entry->ap->channel);
+				Wifi_RawSetPacketHandler(cap_handler);
+				Wifi_SetPromiscuousMode(1);
+				display_state = STATE_PACKET;
+				break;
+
+			case STATE_PACKET:
+				Wifi_Update();
 				break;
 			}
 
-			display_ap(entry->ap);
 			scanKeys();
+			if (keysDown() & KEY_A && state == STATE_PACKET) {
+				state = STATE_CONNECTING;
+			}
 			if (keysDown() & KEY_B) {
 				print_to_debug("Back to scan mode");
 				state = STATE_SCANNING;
+				Wifi_RawSetPacketHandler(NULL);
+				Wifi_SetPromiscuousMode(0);
+				Wifi_ScanMode();
 			}
 			swiWaitForVBlank();
 			break;
