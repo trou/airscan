@@ -7,7 +7,7 @@ Interesting features include :
 	- Display only desired protection levels (open, WEP, WPA)
 	- Connectivity testing for open access points
 	- Easy scrolling
-	- Timeout for out of range APs
+	- Timeouts for out of range APs
 
 This app was inspired by wifi_lib_test v0.3a by Stephen Stair.
 Thanks a lot Stephen for dswifi !
