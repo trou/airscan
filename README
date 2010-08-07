@@ -1,4 +1,13 @@
-AirScan is a basic wardriving utility for the Nintendo DS
+AirScan is a Wi-FI scanning utility for the Nintendo DS. It offers various
+filtering features to facilitate access point discovery.
+For example, it can be used to locate open access points in low WiFi density
+areas thanks to its sensivity.
+
+Interesting features include :
+	- Display only desired protection levels (open, WEP, WPA)
+	- Connectivity testing for open access points
+	- Easy scrolling
+	- Timeout for out of range APs
 
 This app was inspired by wifi_lib_test v0.3a by Stephen Stair.
 Thanks a lot Stephen for dswifi !
