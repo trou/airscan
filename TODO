@@ -2,4 +2,3 @@
 	- packet sniffer
 - scan on specific channel (not doable with current lib wifi)
 - move options on top screen (maybe)
-- improve information display with DNS resolution and GET test

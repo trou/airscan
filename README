@@ -5,7 +5,9 @@ areas thanks to its sensivity.
 
 Interesting features include :
 	- Display only desired protection levels (open, WEP, WPA)
-	- Connectivity testing for open access points
+	- Connectivity testing for open access points :
+		- DNS resolution of www.google.com
+		- Google homepage retrieval
 	- Easy scrolling
 	- Timeouts for out of range APs
 
@@ -20,7 +22,7 @@ Known bugs :
 	- crashes sometimes when the number of APs is high (> 400)
 	- when connecting to an AP then going back to scanning 
 	  and trying to connect to another AP will not work
-	  correctly (dswifi bug ?)
+	  every time (dswifi bug ?)
 	- timeouts handling is still probably a bit buggy
 
 How to build :
@@ -36,6 +38,10 @@ to crack WEP/WPA access point. If you want to do that, use a PC
 and aircrack.
 
 History :
+v1.0  : xx/xx/201x
+	- DNS testing
+	- Google GET test
+
 v0.6  : 20/02/2010 
 	- fixed scrolling
 	- hopefully fix timeouts related bugs
