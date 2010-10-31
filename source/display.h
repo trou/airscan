@@ -35,7 +35,7 @@
 /* Currently displayed APs */
 extern struct AP_HT_Entry *cur_entries[DISPLAY_LINES];
 
-void display_ap(Wifi_AccessPoint *ap);
+void display_ap(Wifi_AccessPoint *ap, int new_ap);
 void display_entry(int line, struct AP_HT_Entry *entry, char *mode);
 void display_list(int index, int flags);
 

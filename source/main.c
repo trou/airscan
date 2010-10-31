@@ -363,9 +363,9 @@ void wardriving_loop()
 					state = STATE_AP_DISPLAY;
 					//display_state = STATE_PACKET_INIT;
 					display_state = STATE_CONNECTING;
-					print_to_debug("Packet scan mode\n");
-					print_to_debug(" A : try to connect\n");
-					print_to_debug(" B : back to scan\n");
+					print_to_debug("Packet scan mode");
+					print_to_debug(" A : try to connect");
+					print_to_debug(" B : back to scan");
 					break;
 				}
 			}
@@ -440,7 +440,7 @@ void wardriving_loop()
 					print_to_debug("Press B to cancel");
 					switch (connect_ap(entry->ap)) {
 					case ASSOCSTATUS_ASSOCIATED:
-						display_state = STATE_CONNECTED;
+						display_state = STATE_CONNECTED_FIRST;
 						break;
 
 					default:
@@ -456,8 +456,13 @@ void wardriving_loop()
 				}
 				break;
 
+			case STATE_CONNECTED_FIRST:
+				display_ap(entry->ap, 1);
+				display_state = STATE_CONNECTED;
+				break;
+
 			case STATE_CONNECTED:
-				display_ap(entry->ap);
+				display_ap(entry->ap, 0);
 				break;
 
 			case STATE_PACKET_INIT:
