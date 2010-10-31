@@ -34,46 +34,48 @@ struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = { NULL };
 
 int displayed;			/* Number of items already displayed */
 
-int try_google(struct in_addr *ip) {
-    const char *request = "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n";
-    int http_socket, recvd_len;
-    int res, ret; 
-    struct sockaddr_in addr;
-    char resp[256];
+/* try to get the Google homepage and display ip on debug screen */
+int try_google(struct in_addr *ip)
+{
+	const char *request = "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n";
+	int http_socket, recvd_len;
+	int res, ret;		/* calls ret and function return value */
+	struct sockaddr_in addr;
+	char resp[256];
 
-    ret = -1;
-    http_socket = socket(AF_INET, SOCK_STREAM, 0);
-    printf_to_debug("http_socket : %d\n", http_socket);
-    if (http_socket == -1)
-    	goto g_cleanup;
+	ret = -1;
+	http_socket = socket(AF_INET, SOCK_STREAM, 0);
+	DEBUG_PRINT("http_socket : %d\n", http_socket);
+	if (http_socket == -1)
+		goto g_cleanup;
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(80);
-    addr.sin_addr.s_addr = *(unsigned long int *)ip;
-    res = connect(http_socket, (struct sockaddr *)&addr, sizeof(addr));
-    printf_to_debug("connect : %d\n", res);
-    if (res == -1)
-    	goto g_cleanup;
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(80);
+	addr.sin_addr.s_addr = *(unsigned long int *)ip;
+	res = connect(http_socket, (struct sockaddr *)&addr, sizeof(addr));
+	DEBUG_PRINT("connect : %d\n", res);
+	if (res == -1)
+		goto g_cleanup;
 
-    res = send(http_socket, request, strlen(request), 0);
-    printf_to_debug("send : %d\n", res);
-    if (res == -1)
-    	goto g_cleanup;
+	res = send(http_socket, request, strlen(request), 0);
+	DEBUG_PRINT("send : %d\n", res);
+	if (res == -1)
+		goto g_cleanup;
 
-    printf_to_debug("response beginning : \n");
-    recvd_len = recv(http_socket, resp, 255, 0);
-    if(recvd_len > 0) {
-    	resp[recvd_len] = 0; // null-terminate
-    	printf_to_debug("%s", resp);
-    } 
-    if (recvd_len == -1)
-	goto g_cleanup;
- 
-    ret = 0;
-g_cleanup:
-    shutdown(http_socket,0);
-    closesocket(http_socket); 
-    return ret;
+	printf_to_debug("response beginning : \n");
+	recvd_len = recv(http_socket, resp, 255, 0);
+	if (recvd_len > 0) {
+		resp[recvd_len] = 0;	// null-terminate
+		printf_to_debug("%s", resp);
+	}
+	if (recvd_len == -1)
+		goto g_cleanup;
+
+	ret = 0;
+ g_cleanup:
+	shutdown(http_socket, 0);
+	closesocket(http_socket);
+	return ret;
 }
 
 /* Display IP data for connected AP */
@@ -81,8 +83,10 @@ void display_ap(Wifi_AccessPoint * ap)
 {
 	static struct in_addr ip, gw, sn, dns1, dns2;
 	int status;
-	struct hostent *google_addr;
+	static struct hostent *google_addr = NULL;
 	static int connect_try = 0;
+	static struct in_addr g_ip;
+	static int prev_status, errno_cache;
 
 	clear_main();
 
@@ -93,6 +97,12 @@ void display_ap(Wifi_AccessPoint * ap)
 	print_xy(0, 2, "State :");
 	printf_xy(0, 3, "%s", ASSOCSTATUS_STRINGS[status]);
 	if (status == ASSOCSTATUS_ASSOCIATED) {
+		/* new association, try Google again */
+		if(prev_status != ASSOCSTATUS_ASSOCIATED) {
+			connect_try = 0;
+			DEBUG_PRINT("new ap!");
+		}
+
 		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
 
 		printf_xy(0, 4, "IP :     %s", inet_ntoa(ip));
@@ -101,92 +111,111 @@ void display_ap(Wifi_AccessPoint * ap)
 		printf_xy(0, 7, "DNS1 :   %s", inet_ntoa(dns1));
 		printf_xy(0, 8, "DNS2 :   %s", inet_ntoa(dns2));
 
-		google_addr = gethostbyname("www.google.com");
-		if (google_addr == NULL) {
-			printf_xy(0, 9, "DNS failed");
-		} else {
-			if (!connect_try) {
-				struct in_addr g_ip;
-
-				g_ip = *(struct in_addr*)(google_addr->h_addr_list[0]);
-				printf_xy(0, 9, "Google IP : %s", inet_ntoa(g_ip));
+		if (!connect_try) {
+			google_addr = gethostbyname("www.google.com");
+			if (google_addr == NULL) {
+				printf_xy(0, 9, "DNS failed");
+			} else {
+				g_ip =
+				    *(struct in_addr *)(google_addr->
+							h_addr_list[0]);
+				printf_xy(0, 9, "Google IP : %s",
+					  inet_ntoa(g_ip));
 				if (try_google(&g_ip) == 0) {
 					printf_xy(0, 10, "GET : OK");
+					errno_cache = 0;
 				} else {
-					printf_xy(0, 10, "GET errno : %d", errno);
+					errno_cache = errno;
+					printf_xy(0, 10, "GET errno : %d",
+						  errno);
 				}
-				connect_try = 1;
+			}
+			connect_try = 1; 
+		} else {
+			if (google_addr == NULL)
+				printf_xy(0, 9, "DNS failed");
+			else {
+				printf_xy(0, 9, "Google IP : %s",
+					  inet_ntoa(g_ip));
+				if (errno_cache) {
+					printf_xy(0, 10, "GET errno : %d",
+						  errno_cache);
+				} else {
+					printf_xy(0, 10, "GET : OK");
+				}
 			}
 		}
 	}
+	prev_status = status;
 }
 
 /* Print "entry" on line "line" */
-void display_entry(int line, struct AP_HT_Entry *entry, char *mode)
-{
+	void display_entry(int line, struct AP_HT_Entry *entry, char *mode) {
 
-	if (line < DISPLAY_LINES)
-		cur_entries[line] = entry;
+		if (line < DISPLAY_LINES)
+			cur_entries[line] = entry;
 
-	printf_xy(0, line * 3, "%s", entry->ap->ssid);
-	printf_xy(0, line * 3 + 1, "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
-		  entry->ap->macaddr[0], entry->ap->macaddr[1],
-		  entry->ap->macaddr[2], entry->ap->macaddr[3],
-		  entry->ap->macaddr[4], entry->ap->macaddr[5], mode,
-		  entry->ap->channel, (entry->ap->rssi * 100) / 0xD0,
-		  (curtick - entry->tick) / 1000);
-	print_xy(0, line * 3 + 2, SCREEN_SEP);
-}
-
-int display_type(int type, int index, char *str)
-{
-	int i;
-	int real_index = 0;
-
-	if (index > num[type])
-		return index - num[type];
-
-	i = (first_null[type] >= 0 && index > first_null[type] ?
-	     first_null[type] : index);
-	real_index = i;
-	for (; i < (num[type] + num_null[type]) && displayed < DISPLAY_LINES;
-	     i++) {
-		if (ap[type][i]) {
-			if (real_index >= index)
-				display_entry(displayed++, ap[type][i], str);
-			real_index++;
-		}
+		printf_xy(0, line * 3, "%s", entry->ap->ssid);
+		printf_xy(0, line * 3 + 1,
+			  "%02X%02X%02X%02X%02X%02X %s c%02d %3dp %ds",
+			  entry->ap->macaddr[0], entry->ap->macaddr[1],
+			  entry->ap->macaddr[2], entry->ap->macaddr[3],
+			  entry->ap->macaddr[4], entry->ap->macaddr[5], mode,
+			  entry->ap->channel, (entry->ap->rssi * 100) / 0xD0,
+			  (curtick - entry->tick) / 1000);
+		print_xy(0, line * 3 + 2, SCREEN_SEP);
 	}
-	index -= num[type];
-	if (index < 0)
-		index = 0;
-	return index;
-}
+
+	int display_type(int type, int index, char *str) {
+		int i;
+		int real_index = 0;
+
+		if (index > num[type])
+			return index - num[type];
+
+		i = (first_null[type] >= 0 && index > first_null[type] ?
+		     first_null[type] : index);
+		real_index = i;
+		for (;
+		     i < (num[type] + num_null[type])
+		     && displayed < DISPLAY_LINES; i++) {
+			if (ap[type][i]) {
+				if (real_index >= index)
+					display_entry(displayed++, ap[type][i],
+						      str);
+				real_index++;
+			}
+		}
+		index -= num[type];
+		if (index < 0)
+			index = 0;
+		return index;
+	}
 
 /* display a list of AP on the screen, starting at "index", displaying
    only those specified in "flags" */
-void display_list(int index, int flags)
-{
-	/* header */
-	displayed = 1;
+	void display_list(int index, int flags) {
+		/* header */
+		displayed = 1;
 
-	clear_main();
+		clear_main();
 
-	printf_xy(0, 0, "%d AP On:%s Tmot:%03d", numap, modes, timeout / 1000);
-	printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN],
-		  num[WEP], num[WPA], index);
-	print_xy(0, 2, SCREEN_SEP);
+		printf_xy(0, 0, "%d AP On:%s Tmot:%03d", numap, modes,
+			  timeout / 1000);
+		printf_xy(0, 1, "OPN:%03d WEP:%03d WPA:%03d idx:%03d", num[OPN],
+			  num[WEP], num[WPA], index);
+		print_xy(0, 2, SCREEN_SEP);
 
-	memset(cur_entries, 0, sizeof(cur_entries));
+		memset(cur_entries, 0, sizeof(cur_entries));
 
-	if (flags & DISP_OPN)
-		index = display_type(OPN, index, "OPN");
+		if (flags & DISP_OPN)
+			index = display_type(OPN, index, "OPN");
 
-	if (flags & DISP_WEP)
-		index = display_type(WEP, index, "WEP");
+		if (flags & DISP_WEP)
+			index = display_type(WEP, index, "WEP");
 
-	if (flags & DISP_WPA)
-		display_type(WPA, index, "WPA");
+		if (flags & DISP_WPA)
+			display_type(WPA, index, "WPA");
 
-	return;
-}
+		return;
+	}

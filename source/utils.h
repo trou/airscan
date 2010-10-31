@@ -32,6 +32,12 @@
 #define print_xy(...) print_xy_to(mainConsole, __VA_ARGS__)
 #define printf_xy_to_debug(...) printf_xy_to(debugConsole, __VA_ARGS__)
 #define printf_xy(...) printf_xy_to(mainConsole, __VA_ARGS__)
+#ifdef DEBUG
+	#define DEBUG_PRINT(...) do{ printf_to_debug(__VA_ARGS__); } while(false)
+#else
+	#define DEBUG_PRINT(...) do {} while (0)
+#endif
+
 
 extern PrintConsole *debugConsole, *mainConsole;
 
