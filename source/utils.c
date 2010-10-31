@@ -24,6 +24,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <nds.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include "display.h"
 #include "utils.h"
 
@@ -108,3 +111,5 @@ void abort_msg(char *msg)
 	while (1)
 		swiWaitForVBlank();
 }
+
+

@@ -25,6 +25,7 @@
 #include <nds.h>
 #include <dswifi9.h>
 #include <netdb.h>
+#include <errno.h>
 #include "airscan.h"
 #include "utils.h"
 #include "display.h"
@@ -33,12 +34,55 @@ struct AP_HT_Entry *cur_entries[DISPLAY_LINES] = { NULL };
 
 int displayed;			/* Number of items already displayed */
 
+int try_google(struct in_addr *ip) {
+    const char *request = "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n";
+    int http_socket, recvd_len;
+    int res, ret; 
+    struct sockaddr_in addr;
+    char resp[256];
+
+    ret = -1;
+    http_socket = socket(AF_INET, SOCK_STREAM, 0);
+    printf_to_debug("http_socket : %d\n", http_socket);
+    if (http_socket == -1)
+    	goto g_cleanup;
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(80);
+    addr.sin_addr.s_addr = *(unsigned long int *)ip;
+    res = connect(http_socket, (struct sockaddr *)&addr, sizeof(addr));
+    printf_to_debug("connect : %d\n", res);
+    if (res == -1)
+    	goto g_cleanup;
+
+    res = send(http_socket, request, strlen(request), 0);
+    printf_to_debug("send : %d\n", res);
+    if (res == -1)
+    	goto g_cleanup;
+
+    printf_to_debug("response beginning : \n");
+    recvd_len = recv(http_socket, resp, 255, 0);
+    if(recvd_len > 0) {
+    	resp[recvd_len] = 0; // null-terminate
+    	printf_to_debug("%s", resp);
+    } 
+    if (recvd_len == -1)
+	goto g_cleanup;
+ 
+    ret = 0;
+g_cleanup:
+    shutdown(http_socket,0);
+    closesocket(http_socket); 
+    return ret;
+}
+
 /* Display IP data for connected AP */
 void display_ap(Wifi_AccessPoint * ap)
 {
 	static struct in_addr ip, gw, sn, dns1, dns2;
 	int status;
 	struct hostent *google_addr;
+	static int connect_try = 0;
 
 	clear_main();
 
@@ -61,9 +105,18 @@ void display_ap(Wifi_AccessPoint * ap)
 		if (google_addr == NULL) {
 			printf_xy(0, 9, "DNS failed");
 		} else {
-			printf_xy(0, 9, "Google : %s", inet_ntoa( 
-			  *(struct in_addr*)(google_addr->h_addr_list[0])));
+			if (!connect_try) {
+				struct in_addr g_ip;
 
+				g_ip = *(struct in_addr*)(google_addr->h_addr_list[0]);
+				printf_xy(0, 9, "Google IP : %s", inet_ntoa(g_ip));
+				if (try_google(&g_ip) == 0) {
+					printf_xy(0, 10, "GET : OK");
+				} else {
+					printf_xy(0, 10, "GET errno : %d", errno);
+				}
+				connect_try = 1;
+			}
 		}
 	}
 }
