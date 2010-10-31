@@ -361,7 +361,8 @@ void wardriving_loop()
 #endif
 				if (entry) {
 					state = STATE_AP_DISPLAY;
-					display_state = STATE_PACKET_INIT;
+					//display_state = STATE_PACKET_INIT;
+					display_state = STATE_CONNECTING;
 					print_to_debug("Packet scan mode\n");
 					print_to_debug(" A : try to connect\n");
 					print_to_debug(" B : back to scan\n");

@@ -24,6 +24,7 @@
 #include <netinet/in.h>
 #include <nds.h>
 #include <dswifi9.h>
+#include <netdb.h>
 #include "airscan.h"
 #include "utils.h"
 #include "display.h"
@@ -37,6 +38,7 @@ void display_ap(Wifi_AccessPoint * ap)
 {
 	static struct in_addr ip, gw, sn, dns1, dns2;
 	int status;
+	struct hostent *google_addr;
 
 	clear_main();
 
@@ -54,6 +56,15 @@ void display_ap(Wifi_AccessPoint * ap)
 		printf_xy(0, 6, "GW :     %s", inet_ntoa(gw));
 		printf_xy(0, 7, "DNS1 :   %s", inet_ntoa(dns1));
 		printf_xy(0, 8, "DNS2 :   %s", inet_ntoa(dns2));
+
+		google_addr = gethostbyname("www.google.com");
+		if (google_addr == NULL) {
+			printf_xy(0, 9, "DNS failed");
+		} else {
+			printf_xy(0, 9, "Google : %s", inet_ntoa( 
+			  *(struct in_addr*)(google_addr->h_addr_list[0])));
+
+		}
 	}
 }
 
