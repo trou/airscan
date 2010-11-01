@@ -60,7 +60,6 @@ bool inline macaddr_cmp(void *mac1, void *mac2)
 	    (((u16 *) mac1)[2] == ((u16 *) mac2)[2]);
 }
 
-
 /* Try to connect to given AP and get an IP via DHCP */
 int connect_ap(Wifi_AccessPoint * ap)
 {
@@ -106,12 +105,12 @@ void cap_handler(int packetID, int packetlength)
 	if (packetlength > MAX_PACKET_SIZE)
 		packetlength = MAX_PACKET_SIZE;
 
-        valid_packet = 1;
+	valid_packet = 1;
 	Wifi_RxRawReadPacket(packetID, packetlength,
 			     (unsigned short *)(capture_data));
-	if (!macaddr_cmp(capture_data+10, mac_filter) &&
-	    !macaddr_cmp(capture_data+4, mac_filter))
-	    valid_packet = 0;
+	if (!macaddr_cmp(capture_data + 10, mac_filter) &&
+	    !macaddr_cmp(capture_data + 4, mac_filter))
+		valid_packet = 0;
 }
 
 void do_realloc(int type)
@@ -437,10 +436,14 @@ void wardriving_loop()
 					print_to_debug
 					    ("Trying to connect to :");
 					print_to_debug(entry->ap->ssid);
+					if (entry->ap->rssi <= 40)
+						print_to_debug
+						    ("Warning : weak signal");
 					print_to_debug("Press B to cancel");
 					switch (connect_ap(entry->ap)) {
 					case ASSOCSTATUS_ASSOCIATED:
-						display_state = STATE_CONNECTED_FIRST;
+						display_state =
+						    STATE_CONNECTED_FIRST;
 						break;
 
 					default:
@@ -508,7 +511,7 @@ int main(int argc, char **argv)
 	/* Setup logging console on top screen */
 	init_consoles();
 
-	print_to_debug("AirScan v0.6 by Raphael Rigo");
+	print_to_debug("AirScan v1.0 by Raphael Rigo");
 	print_to_debug("released 20/02/2010");
 	print_to_debug("");
 	print_to_debug("B: Toggle OPN");

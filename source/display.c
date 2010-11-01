@@ -93,49 +93,43 @@ void display_ap(Wifi_AccessPoint * ap, int new_ap)
 
 	print_xy(0, 0, "SSID :");
 	print_xy(0, 1, ap->ssid);
-	print_xy(0, 2, "State :");
-	printf_xy(0, 3, "%s", ASSOCSTATUS_STRINGS[status]);
+	print_xy(0, 3, "State :");
+	printf_xy(0, 4, "%s", ASSOCSTATUS_STRINGS[status]);
 	if (status == ASSOCSTATUS_ASSOCIATED) {
 		ip = Wifi_GetIPInfo(&gw, &sn, &dns1, &dns2);
 
-		printf_xy(0, 4, "IP :     %s", inet_ntoa(ip));
-		printf_xy(0, 5, "Subnet : %s", inet_ntoa(sn));
-		printf_xy(0, 6, "GW :     %s", inet_ntoa(gw));
-		printf_xy(0, 7, "DNS1 :   %s", inet_ntoa(dns1));
-		printf_xy(0, 8, "DNS2 :   %s", inet_ntoa(dns2));
+		printf_xy(0, 6, "IP :        %s", inet_ntoa(ip));
+		printf_xy(0, 7, "Subnet :    %s", inet_ntoa(sn));
+		printf_xy(0, 8, "GW :        %s", inet_ntoa(gw));
+		printf_xy(0, 9, "DNS1 :      %s", inet_ntoa(dns1));
+		printf_xy(0, 10, "DNS2 :      %s", inet_ntoa(dns2));
 
 		/* new association, try Google again */
 		if (new_ap) {
 			DEBUG_PRINT("new ap!");
 			google_addr = gethostbyname("www.google.com");
-			if (google_addr == NULL) {
-				printf_xy(0, 9, "DNS failed");
-			} else {
+			if (google_addr != NULL) {
 				g_ip =
-				    *(struct in_addr *)(google_addr->
-							h_addr_list[0]);
-				printf_xy(0, 9, "Google IP : %s",
-					  inet_ntoa(g_ip));
+				    *(struct in_addr
+				      *)(google_addr->h_addr_list[0]);
 				if (try_google(&g_ip) == 0) {
-					printf_xy(0, 10, "GET : OK");
 					errno_cache = 0;
 				} else {
 					errno_cache = errno;
-					printf_xy(0, 10, "GET errno : %d",
-						  errno);
 				}
 			}
 		} else {
 			if (google_addr == NULL)
-				printf_xy(0, 9, "DNS failed");
+				printf_xy(0, 12, "DNS failed");
 			else {
-				printf_xy(0, 9, "Google IP : %s",
+				printf_xy(0, 12, "Google IP : %s",
 					  inet_ntoa(g_ip));
 				if (errno_cache) {
-					printf_xy(0, 10, "GET errno : %d",
+					printf_xy(0, 13, "GET errno : %d",
 						  errno_cache);
 				} else {
-					printf_xy(0, 10, "GET : OK");
+					printf_xy(0, 13,
+						  "GET : OK, see top screen");
 				}
 			}
 		}
