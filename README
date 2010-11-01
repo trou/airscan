@@ -18,6 +18,10 @@ This app was inspired by wifi_lib_test v0.3a by Stephen Stair.
 Thanks a lot Stephen for dswifi !
 See his page at http://www.akkit.org/dswifi/.
 
+The icon is based on the "Wi-Fi icons colors" by NeoCorvis, licensed under the
+artistic license version 2.
+URL : http://kde-look.org/content/show.php?content=114621
+
 Usage
 -----
 AirScan will start discovering and displaying surrounding access points as soon
@@ -64,9 +68,10 @@ Compiling
 
 History
 -------
-v1.0  : xx/xx/201x
+v1.0  : xx/11/2010
 	- DNS testing
 	- Google GET test
+	- new icon
 
 v0.6  : 20/02/2010 
 	- fixed scrolling
