@@ -512,7 +512,7 @@ int main(int argc, char **argv)
 	init_consoles();
 
 	print_to_debug("AirScan v1.0 by Raphael Rigo");
-	print_to_debug("released 20/02/2010");
+	print_to_debug("released 07/11/2010");
 	print_to_debug("");
 	print_to_debug("B: Toggle OPN");
 	print_to_debug("A: Toggle WEP");
