@@ -49,7 +49,7 @@ Known bugs and limitations
 --------------------------
 Cycling through all present access points can be quite long if there are too
 many. This is a limitation of dswifi which implies that some parameters are not
-updated in real time, like signal strenght.
+updated in real time, like signal strength.
 This also means that timeouts can behave strangely.
 
 Real known bugs :
@@ -61,7 +61,7 @@ Real known bugs :
 
 Compiling
 ---------
-1) make sure to use devkitARM 28 and dswifi > 0.3.12.
+1) make sure to use devkitARM >= 28 and dswifi > 0.3.12.
 2) Setup env vars
 3) Build by typing "make"
 
